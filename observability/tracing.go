@@ -21,7 +21,7 @@ import (
 func WithDefaultTracingOpts() []sdktrace.TracerProviderOption {
 	res, _ := WithDefaultResource(context.Background())
 	return []sdktrace.TracerProviderOption{
-		res,
+		sdktrace.WithResource(res),
 	}
 }
 
@@ -55,10 +55,10 @@ func InitTraceProvider(addr string, creds *credentials.TransportCredentials, opt
 	// Register the trace exporter with a TracerProvider, using a batch
 	// span processor to aggregate spans before export.
 	bsp := sdktrace.NewBatchSpanProcessor(traceExporter)
+	defaultOpts := []sdktrace.TracerProviderOption{sdktrace.WithSampler(sdktrace.AlwaysSample()), sdktrace.WithSpanProcessor(bsp)}
+	opts = append(defaultOpts, opts...)
 	tracerProvider := sdktrace.NewTracerProvider(
-		sdktrace.WithSampler(sdktrace.AlwaysSample()),
-		sdktrace.WithSpanProcessor(bsp),
-		opts,
+		opts...,
 	)
 	otel.SetTracerProvider(tracerProvider)
 
