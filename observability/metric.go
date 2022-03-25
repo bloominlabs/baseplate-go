@@ -9,10 +9,9 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 
-	runtimemetrics "go.opentelemetry.io/contrib/instrumentation/runtime"
+	// runtimemetrics "go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
-	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/metric/global"
 	controller "go.opentelemetry.io/otel/sdk/metric/controller/basic"
 	processor "go.opentelemetry.io/otel/sdk/metric/processor/basic"
@@ -35,9 +34,8 @@ func WithDefaultMetricOpts() []controller.Option {
 // reworks the metrics API upstream to support globals. This will be updated in
 // tandem when https://github.com/open-telemetry/opentelemetry-go/pull/2587 is
 // deployed.
-func InitMetricsProvider(addr string, credentials *credentials.TransportCredentials, opts ...controller.Option) (func(), metric.MeterProvider, error) {
+func InitMetricsProvider(addr string, credentials *credentials.TransportCredentials, opts ...controller.Option) (func(), error) {
 	ctx := context.Background()
-	mp := metric.NewNoopMeterProvider()
 
 	grpcCreds := insecure.NewCredentials()
 	if credentials != nil {
@@ -51,7 +49,7 @@ func InitMetricsProvider(addr string, credentials *credentials.TransportCredenti
 	// probably connect directly to the service through dns
 	con, err := grpc.DialContext(ctx, addr, grpc.WithTransportCredentials(grpcCreds), grpc.WithBlock())
 	if err != nil {
-		return nil, mp, fmt.Errorf("failed to create gRPC connection to collector: %w", err)
+		return nil, fmt.Errorf("failed to create gRPC connection to collector: %w", err)
 	}
 
 	metricClient := otlpmetricgrpc.NewClient(
@@ -59,7 +57,7 @@ func InitMetricsProvider(addr string, credentials *credentials.TransportCredenti
 	)
 	metricExporter, err := otlpmetric.New(ctx, metricClient)
 	if err != nil {
-		return nil, mp, fmt.Errorf("failed to create the collector metric exporter: %w", err)
+		return nil, fmt.Errorf("failed to create the collector metric exporter: %w", err)
 	}
 
 	// Configure the pusher to push metrics CollectPeriod
@@ -76,11 +74,10 @@ func InitMetricsProvider(addr string, credentials *credentials.TransportCredenti
 		finalOpts...,
 	)
 	global.SetMeterProvider(pusher)
-	mp = pusher
 
-	if err = runtimemetrics.Start(runtimemetrics.WithMinimumReadMemStatsInterval(time.Second)); err != nil {
-		return nil, mp, fmt.Errorf("failed to start runtime metrics: %w", err)
-	}
+	// if err = runtimemetrics.Start(runtimemetrics.WithMinimumReadMemStatsInterval(time.Second)); err != nil {
+	// 	return nil, fmt.Errorf("failed to start runtime metrics: %w", err)
+	// }
 
 	// TODO: this wont work because config.* are not being populated by build
 	// meter := global.Meter(config.Service)
@@ -102,7 +99,7 @@ func InitMetricsProvider(addr string, credentials *credentials.TransportCredenti
 	// start pushing
 	err = pusher.Start(ctx)
 	if err != nil {
-		return nil, mp, fmt.Errorf("failed to start metric pusher: %w", err)
+		return nil, fmt.Errorf("failed to start metric pusher: %w", err)
 	}
 
 	return func() {
@@ -112,5 +109,5 @@ func InitMetricsProvider(addr string, credentials *credentials.TransportCredenti
 		if err != nil {
 			log.Fatal().Err(pusher.Stop(ctx)).Msg("failed to shutdown MetricsPusher")
 		}
-	}, mp, nil
+	}, nil
 }
