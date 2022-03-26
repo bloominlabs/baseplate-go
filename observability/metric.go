@@ -47,7 +47,7 @@ func InitMetricsProvider(addr string, credentials *credentials.TransportCredenti
 	// `localhost:30080` endpoint. Otherwise, replace `localhost` with the
 	// endpoint of your cluster. If you run the app inside k8s, then you can
 	// probably connect directly to the service through dns
-	con, err := grpc.DialContext(ctx, addr, grpc.WithTransportCredentials(grpcCreds), grpc.WithBlock())
+	con, err := grpc.DialContext(ctx, addr, grpc.WithTransportCredentials(grpcCreds), grpc.FailOnNonTempDialError(true), grpc.WithBlock())
 	if err != nil {
 		return nil, fmt.Errorf("failed to create gRPC connection to collector: %w", err)
 	}
