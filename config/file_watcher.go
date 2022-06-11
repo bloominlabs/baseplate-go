@@ -261,6 +261,7 @@ func (w *fileWatcher) reconcile(ctx context.Context) {
 			w.logger.Error().Str("file", filename).Err(err).Msg("failed to add file to watcher")
 			continue
 		}
+		w.logger.Trace().Str("filename", filename).Time("old modTime", configFile.modTime).Time("new modTime", newModTime).Msg("precall handler")
 		if !configFile.modTime.Equal(newModTime) {
 			w.logger.Trace().Str("filename", filename).Time("old modTime", configFile.modTime).Time("new modTime", newModTime).Msg("call the handler")
 			configFile.modTime = newModTime

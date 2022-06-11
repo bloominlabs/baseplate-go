@@ -95,9 +95,6 @@ func TestCertificateWatcherGetCertificate(t *testing.T) {
 	certFile1, pkFile1 := createTempCertificate(t, "set1")
 	cert1, err := tls.LoadX509KeyPair(certFile1, pkFile1)
 	require.NoError(t, err)
-	certFile2, pkFile2 := createTempCertificate(t, "set2")
-	cert2, err := tls.LoadX509KeyPair(certFile2, pkFile2)
-	require.NoError(t, err)
 
 	w, err := NewCertificateWatcher(certFile1, pkFile1, log.With().Logger(), 1*time.Nanosecond)
 
@@ -115,6 +112,10 @@ func TestCertificateWatcherGetCertificate(t *testing.T) {
 	},
 		5*time.Second,
 		500*time.Millisecond, "watcher did not rotate certificate within alotted time")
+
+	certFile2, pkFile2 := createTempCertificate(t, "set2")
+	cert2, err := tls.LoadX509KeyPair(certFile2, pkFile2)
+	require.NoError(t, err)
 
 	// rotate the certificate on disk
 	os.Rename(certFile2, certFile1)

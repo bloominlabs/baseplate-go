@@ -14,7 +14,6 @@ require (
 	go.opentelemetry.io/otel/metric v0.28.0
 	go.opentelemetry.io/otel/sdk v1.6.0
 	go.opentelemetry.io/otel/sdk/metric v0.28.0
-	golang.org/x/crypto v0.0.0-20211215165025-cf75a172585e
 	google.golang.org/grpc v1.45.0
 )
 
