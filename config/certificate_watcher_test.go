@@ -109,7 +109,7 @@ func TestCertificateWatcherGetCertificate(t *testing.T) {
 		require.NoError(t, err)
 		return assert.Equal(t, cert1, *actualCert)
 	},
-		2*time.Second,
+		5*time.Second,
 		500*time.Millisecond, "watcher did not rotate certificate within alotted time")
 
 	// rotate the certificate on disk
@@ -120,6 +120,6 @@ func TestCertificateWatcherGetCertificate(t *testing.T) {
 		require.NoError(t, err)
 		return assert.Equal(t, cert2, *actualCert)
 	},
-		2*time.Second,
+		5*time.Second,
 		500*time.Millisecond, "watcher did not rotate certificate within alotted time")
 }
