@@ -12,8 +12,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
-	// "github.com/rs/zerolog/log"
-
 	"github.com/hashicorp/consul/sdk/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -89,34 +87,39 @@ func TestCertificateWatcherStartNotCertificate(t *testing.T) {
 	require.Error(t, err, "no such file or directory")
 }
 
-// TODO: create test HTTPs server, check that it is using the original
-// certificate. Rotate it. then check its using the new one
-// func TestCertificateWatcherGetCertificate(t *testing.T) {
-// 	file := testutil.TempFile(t, "temp_config")
-// 	filename := file.Name() + randomStr(16)
-// 	_, err := NewCertificateWatcher(filename, filename, zerolog.Logger{}, 1*time.Nanosecond)
-// 	require.Error(t, err, "no such file or directory")
-// }
+func TestCertificateWatcherGetCertificate(t *testing.T) {
+	certFile1, pkFile1 := createTempCertificate(t, "set1")
+	cert1, err := tls.LoadX509KeyPair(certFile1, pkFile1)
+	require.NoError(t, err)
+	certFile2, pkFile2 := createTempCertificate(t, "set2")
+	cert2, err := tls.LoadX509KeyPair(certFile2, pkFile2)
+	require.NoError(t, err)
 
-// w, err := config.NewCertificateWatcher(tlsCertPath, tlsKeyPath, log.Logger, time.Second*5)
-// 	if err != nil {
-// 		log.Fatal().Err(err).Msg("failed to create certificate watcher")
-// 	}
-// 	stop, err := w.Start(context.Background())
-// 	if err != nil {
-// 		log.Fatal().Err(err).Msg("failed to start certificate watcher")
-// 	}
-// 	defer stop()
-//
-// 	server := &http.Server{
-// 		Addr: addr,
-// 		TLSConfig: &tls.Config{
-// 			GetCertificate: w.GetCertificateFunc(),
-// 		},
-// 	}
-//
-// 	log.Debug().Str("tlsCertPath", tlsCertPath).Str("tlsKeyPath", tlsKeyPath).Str("addr", addr).Msg("starting https server")
-// 	//Key and cert are coming from keypair reloader
-// 	if err := server.ListenAndServeTLS("", ""); err != nil {
-// 		log.Fatal().Err(err).Msg("failed to listen and server TLS")
-// 	}
+	w, err := NewCertificateWatcher(certFile1, pkFile1, log.With().Logger().Output(io.Discard), 1*time.Nanosecond)
+
+	require.NoError(t, err)
+	stop, err := w.Start(context.Background())
+	require.NoError(t, err)
+	defer stop()
+
+	// test the original certificate was picked up by the watcher
+	getCert := w.GetCertificateFunc()
+	require.Eventually(t, func() bool {
+		actualCert, err := getCert(&tls.ClientHelloInfo{})
+		require.NoError(t, err)
+		return assert.Equal(t, cert1, *actualCert)
+	},
+		2*time.Second,
+		500*time.Millisecond, "watcher did not rotate certificate within alotted time")
+
+	// rotate the certificate on disk
+	os.Rename(certFile2, certFile1)
+	os.Rename(pkFile2, pkFile1)
+	require.Eventually(t, func() bool {
+		actualCert, err := getCert(&tls.ClientHelloInfo{})
+		require.NoError(t, err)
+		return assert.Equal(t, cert2, *actualCert)
+	},
+		2*time.Second,
+		500*time.Millisecond, "watcher did not rotate certificate within alotted time")
+}
