@@ -54,6 +54,8 @@ func TestNewCertificateWatcher(t *testing.T) {
 }
 
 func TestCertificateWatcherRenameEvent(t *testing.T) {
+	t.Parallel()
+
 	certFile1, pkFile1 := createTempCertificate(t, "set1")
 	originalCertificate, err := tls.LoadX509KeyPair(certFile1, pkFile1)
 	require.NoError(t, err)
@@ -88,6 +90,8 @@ func TestCertificateWatcherStartNotCertificate(t *testing.T) {
 }
 
 func TestCertificateWatcherGetCertificate(t *testing.T) {
+	t.Parallel()
+
 	certFile1, pkFile1 := createTempCertificate(t, "set1")
 	cert1, err := tls.LoadX509KeyPair(certFile1, pkFile1)
 	require.NoError(t, err)
