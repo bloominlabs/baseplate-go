@@ -96,7 +96,7 @@ func TestCertificateWatcherGetCertificate(t *testing.T) {
 	cert1, err := tls.LoadX509KeyPair(certFile1, pkFile1)
 	require.NoError(t, err)
 
-	w, err := NewCertificateWatcher(certFile1, pkFile1, log.With().Logger(), 1*time.Nanosecond)
+	w, err := NewCertificateWatcher(certFile1, pkFile1, log.With().Logger().Output(io.Discard), 1*time.Nanosecond)
 
 	require.NoError(t, err)
 	stop, err := w.Start(context.Background())
