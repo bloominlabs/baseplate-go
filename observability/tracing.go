@@ -69,6 +69,8 @@ func InitTraceProvider(addr string, creds *credentials.TransportCredentials, opt
 		ctx, cancel := context.WithTimeout(ctx, time.Second)
 		defer cancel()
 
-		log.Fatal().Err(tracerProvider.Shutdown(ctx)).Msg("failed to shutdown TracerProvider")
+		if err := tracerProvider.Shutdown(ctx); err != nil {
+			log.Fatal().Err(err).Msg("failed to shutdown TracerProvider")
+		}
 	}, nil
 }
