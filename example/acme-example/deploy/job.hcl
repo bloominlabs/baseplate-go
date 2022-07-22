@@ -74,7 +74,7 @@ job "acme-example" {
       // always want it to be prod in the future, but going to leave it for now
       template {
         data        = <<EOH
-{{- with secret "acme/certs/acme-example" "common_name=www.acme-example.prod.stratos.host" -}}
+{{- with secret "acme/certs/acme-example" "common_name=acme-example.prod.stratos.host" -}}
 {{- .Data.issuer_cert -}}
 {{- end -}}
 EOH
@@ -87,7 +87,7 @@ EOH
 
       template {
         data        = <<EOH
-{{- with secret "acme/certs/acme-example" "common_name=www.acme-example.prod.stratos.host" -}}
+{{- with secret "acme/certs/acme-example" "common_name=acme-example.prod.stratos.host" -}}
 {{- .Data.cert -}}
 {{- end -}}
 EOH
@@ -100,7 +100,7 @@ EOH
 
       template {
         data        = <<EOH
-{{- with secret "acme/certs/acme-example" "common_name=www.acme-example.prod.stratos.host" -}}
+{{- with secret "acme/certs/acme-example" "common_name=acme-example.prod.stratos.host" -}}
 {{- .Data.private_key -}}
 {{- end -}}
 EOH

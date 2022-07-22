@@ -41,7 +41,7 @@ new vault.generic.Endpoint("acme-acme-example-role", {
   dataJson: JSON.stringify({
     account: "letsencrypt-staging",
     allowed_domains: "acme-example.prod.stratos.host",
-    allow_subdomains: true,
-    allow_bare_domains: false,
+    allow_subdomains: false,
+    allow_bare_domains: true,
   }),
 });
