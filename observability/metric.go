@@ -14,6 +14,7 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/metric/global"
 	controller "go.opentelemetry.io/otel/sdk/metric/controller/basic"
+	"go.opentelemetry.io/otel/sdk/metric/export/aggregation"
 	processor "go.opentelemetry.io/otel/sdk/metric/processor/basic"
 	"go.opentelemetry.io/otel/sdk/metric/selector/simple"
 
@@ -70,6 +71,8 @@ func InitMetricsProvider(addr string, credentials *credentials.TransportCredenti
 		processor.NewFactory(
 			simple.NewWithHistogramDistribution(),
 			metricExporter,
+			aggregation.CumulativeTemporalitySelector(),
+			processor.WithMemory(true),
 		),
 		finalOpts...,
 	)
