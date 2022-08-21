@@ -46,7 +46,6 @@ func (d Dialer) dialSRV(ctx context.Context, fa *FlavoredAddr) (net.Conn, error)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("1", fa.Service, fa.Proto, host)
 	_, addrs, err := r.LookupSRV(ctx, fa.Service, fa.Proto, host)
 	if err != nil {
 		return nil, err
@@ -54,7 +53,6 @@ func (d Dialer) dialSRV(ctx context.Context, fa *FlavoredAddr) (net.Conn, error)
 	if len(addrs) == 0 {
 		return nil, fmt.Errorf("no SRV records for %s", fa.String())
 	}
-	fmt.Println("2", fa.Network, address(addrs[0]))
 	return d.nd.DialContext(ctx, fa.Network, address(addrs[0]))
 }
 
