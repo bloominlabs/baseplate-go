@@ -10,20 +10,17 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	// runtimemetrics "go.opentelemetry.io/contrib/instrumentation/runtime"
-	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/metric/global"
-	controller "go.opentelemetry.io/otel/sdk/metric/controller/basic"
-	processor "go.opentelemetry.io/otel/sdk/metric/processor/basic"
-	selector "go.opentelemetry.io/otel/sdk/metric/selector/simple"
+	"go.opentelemetry.io/otel/sdk/metric"
 
 	"github.com/rs/zerolog/log"
 )
 
-func WithDefaultMetricOpts() []controller.Option {
+func WithDefaultMetricOpts() []metric.Option {
 	res, _ := WithDefaultResource(context.Background())
-	return []controller.Option{
-		controller.WithResource(res),
+	return []metric.Option{
+		metric.WithResource(res),
 	}
 }
 
@@ -34,7 +31,7 @@ func WithDefaultMetricOpts() []controller.Option {
 // reworks the metrics API upstream to support globals. This will be updated in
 // tandem when https://github.com/open-telemetry/opentelemetry-go/pull/2587 is
 // deployed.
-func InitMetricsProvider(addr string, credentials *credentials.TransportCredentials, opts ...controller.Option) (func(), error) {
+func InitMetricsProvider(addr string, credentials *credentials.TransportCredentials, opts ...metric.Option) (func(), error) {
 	ctx := context.Background()
 
 	grpcCreds := insecure.NewCredentials()
@@ -47,34 +44,27 @@ func InitMetricsProvider(addr string, credentials *credentials.TransportCredenti
 	// `localhost:30080` endpoint. Otherwise, replace `localhost` with the
 	// endpoint of your cluster. If you run the app inside k8s, then you can
 	// probably connect directly to the service through dns
+	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
+	defer cancel()
 	con, err := grpc.DialContext(ctx, addr, grpc.WithTransportCredentials(grpcCreds), grpc.FailOnNonTempDialError(true), grpc.WithBlock())
 	if err != nil {
 		return nil, fmt.Errorf("failed to create gRPC connection to collector: %w", err)
 	}
-
-	metricClient := otlpmetricgrpc.NewClient(
-		otlpmetricgrpc.WithGRPCConn(con),
-	)
-	metricExporter, err := otlpmetric.New(ctx, metricClient)
+	exporter, err := otlpmetricgrpc.New(ctx, otlpmetricgrpc.WithGRPCConn(con))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create the collector metric exporter: %w", err)
+		return nil, fmt.Errorf("failed to create the collector metric client: %w", err)
 	}
 
-	// Configure the pusher to push metrics CollectPeriod
-	defaultOpts := []controller.Option{
-		controller.WithExporter(metricExporter),
-		controller.WithCollectPeriod(time.Second),
+	reader := metric.NewPeriodicReader(exporter, metric.WithInterval(time.Second))
+	defaultOpts := []metric.Option{
+		metric.WithReader(reader),
 	}
 	finalOpts := append(defaultOpts, opts...)
-	pusher := controller.New(
-		processor.NewFactory(
-			selector.NewWithHistogramDistribution(),
-			metricExporter,
-			processor.WithMemory(true),
-		),
+	provider := metric.NewMeterProvider(
 		finalOpts...,
 	)
-	global.SetMeterProvider(pusher)
+
+	global.SetMeterProvider(provider)
 
 	// if err = runtimemetrics.Start(runtimemetrics.WithMinimumReadMemStatsInterval(time.Second)); err != nil {
 	// 	return nil, fmt.Errorf("failed to start runtime metrics: %w", err)
@@ -97,18 +87,12 @@ func InitMetricsProvider(addr string, credentials *credentials.TransportCredenti
 	// 	},
 	// )
 
-	// start pushing
-	err = pusher.Start(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to start metric pusher: %w", err)
-	}
-
 	return func() {
 		ctx, cancel := context.WithTimeout(ctx, time.Second)
 		defer cancel()
-		// Shutdown will flush any remaining spans and shut down the exporter.
+		err := provider.Shutdown(ctx)
 		if err != nil {
-			log.Fatal().Err(pusher.Stop(ctx)).Msg("failed to shutdown MetricsPusher")
+			log.Fatal().Err(err).Msg("failed to shutdown metric provider")
 		}
 	}, nil
 }
