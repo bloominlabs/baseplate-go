@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/auth0/go-jwt-middleware/v2 v2.0.1
 	github.com/fsnotify/fsnotify v1.6.0
-	github.com/hashicorp/consul/sdk v0.10.0
+	github.com/hashicorp/consul/sdk v0.11.0
 	github.com/rs/zerolog v1.28.0
 	github.com/stretchr/testify v1.8.0
 	go.opentelemetry.io/otel v1.11.0
