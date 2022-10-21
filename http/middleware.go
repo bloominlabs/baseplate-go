@@ -128,7 +128,7 @@ func JWTMiddleware(issuerURL string, identifiers []string, opts ...validator.Opt
 		validator.RS256,
 		parsedIssuerURL.String(),
 		identifiers,
-		opts...,
+		finalOpts...,
 	)
 	if err != nil {
 		panic(fmt.Errorf("failed to set up the validator: %v", err))
