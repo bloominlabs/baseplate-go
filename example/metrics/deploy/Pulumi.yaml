@@ -1,3 +1,0 @@
-name: loadchecker
-runtime: go
-description: Generic load testing tool used for testing autoscaler
