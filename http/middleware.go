@@ -45,13 +45,17 @@ func HasScope(requestedScope string, scopes []string) bool {
 // Requires running hte JWTValidatorMiddleware. Can then be used to extra custom claims via
 // ```
 // validatedClaims, ok := JWTClaimsValue(ctx)
-// if !ok {
-//  return "", errors.New("failed to decode JWT claims from context")
-// }
+//
+//	if !ok {
+//	 return "", errors.New("failed to decode JWT claims from context")
+//	}
+//
 // claims, ok := validatedClaims.CustomClaims.(*YourCustomClaims)
-// if !ok {
-//   return "", errors.New("failed to decode custom claims from the validated claim")
-// }
+//
+//	if !ok {
+//	  return "", errors.New("failed to decode custom claims from the validated claim")
+//	}
+//
 // ```
 func JWTClaimsValue(ctx context.Context) (*validator.ValidatedClaims, bool) {
 	raw, ok := ctx.Value(jwtmiddleware.ContextKey{}).(*validator.ValidatedClaims)
@@ -180,4 +184,13 @@ func HlogHandler(h http.Handler) http.Handler {
 	c = c.Append(hlog.RefererHandler("referer"))
 
 	return c.Then(h)
+}
+
+func CorsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "OPTIONS,POST,GET")
+		next.ServeHTTP(w, r)
+	})
 }
