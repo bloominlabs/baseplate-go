@@ -66,6 +66,10 @@ func (w *CertificateWatcher) Start(ctx context.Context) (func(), error) {
 	}, nil
 }
 
+func (w *CertificateWatcher) Stop() error {
+	return w.watcher.Stop()
+}
+
 func (w *CertificateWatcher) GetCertificateFunc() func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
 	if w.cert == nil {
 		panic("did not find certificate in GetCertificateFunc() call. did you run watcher.Start()? Start() is necessary to ensure goroutines are started and cleaned up properly")
