@@ -37,14 +37,14 @@ func (c *Auth0Config) Merge(other *Auth0Config) error {
 		return err
 	} else {
 		c.Lock()
-		c.client = *client
+		c.client = client
 		c.Unlock()
 	}
 
 	return nil
 }
 
-func (c *Auth0Config) CreateClient() (*management.Client, error) {
+func (c *Auth0Config) CreateClient() (*management.Management, error) {
 	if c.Token == "" {
 		return management.New(c.Domain, management.WithClientCredentials(c.ClientID, c.ClientSecret))
 	} else {
@@ -53,20 +53,20 @@ func (c *Auth0Config) CreateClient() (*management.Client, error) {
 }
 
 // Initialize Metrics + Tracing for the app. NOTE: you must call defer t.Stop() to propely cleanup
-func (c *Auth0Config) GetClient() (management.Client, error) {
+func (c *Auth0Config) GetClient() (management.Management, error) {
 	if c.client == nil {
 		client, err := c.CreateClient()
 		if err != nil {
-			return client, err
+			return *client, err
 		}
 		c.Lock()
-		c.client = *client
+		c.client = client
 		c.Unlock()
 
-		return client, err
+		return *client, err
 	}
 
 	c.RLock()
 	defer c.RUnlock()
-	return c.client, nil
+	return *c.client, nil
 }
