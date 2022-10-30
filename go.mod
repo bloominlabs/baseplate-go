@@ -9,7 +9,7 @@ require (
 	github.com/justinas/alice v1.2.0
 	github.com/rs/zerolog v1.28.0
 	github.com/sethvargo/go-limiter v0.7.2
-	github.com/stretchr/testify v1.8.0
+	github.com/stretchr/testify v1.8.1
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.36.4
 	go.opentelemetry.io/otel v1.11.1
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v0.33.0
