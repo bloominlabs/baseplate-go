@@ -1,11 +1,23 @@
 package config
 
 import (
+	"bytes"
+	"errors"
 	"flag"
+	"fmt"
 	"io"
+	"os"
+
+	"github.com/grafana/dskit/flagext"
+	"github.com/pelletier/go-toml/v2"
+	"github.com/rs/zerolog"
 )
 
 const CONFIG_FILE_FLAG = "config.file"
+
+type Configuration interface {
+	RegisterFlags(*flag.FlagSet)
+}
 
 // Parse -config.file option via separate flag set, to avoid polluting default one and calling flag.Parse on it twice.
 func ParseConfigFileParameter(args []string) (configFile string) {
@@ -25,4 +37,42 @@ func ParseConfigFileParameter(args []string) (configFile string) {
 	}
 
 	return
+}
+
+func SetupConfiguration(cfg Configuration, logger zerolog.Logger) error {
+	configFile := ParseConfigFileParameter(os.Args[1:])
+
+	// This sets default values from flags to the config.
+	// It needs to be called before parsing the config file!
+	cfg.RegisterFlags(flag.CommandLine)
+	if configFile != "" {
+		err := ReadConfiguration(configFile, &cfg, logger)
+		if err != nil {
+			return fmt.Errorf("failed to read %s: %w", configFile, err)
+		}
+	}
+
+	flagext.IgnoredFlag(flag.CommandLine, CONFIG_FILE_FLAG, "Configuration file to load.")
+	flag.Parse()
+
+	return nil
+}
+
+func ReadConfiguration(file string, config interface{}, logger zerolog.Logger) error {
+	out, err := os.ReadFile(file)
+	if err != nil {
+		logger.Fatal().Err(err).Str("configFile", file).Msg("failed to read configuration file")
+	}
+
+	err = toml.NewDecoder(bytes.NewReader(out)).DisallowUnknownFields().Decode(&config)
+	if err != nil {
+		var details *toml.StrictMissingError
+		if !errors.As(err, &details) {
+			return fmt.Errorf("err should have been a *toml.StrictMissingError, but got %s (%T)", err, err)
+		}
+
+		return fmt.Errorf("failed to decode the configuration file: \n%s", details.String())
+	}
+
+	return nil
 }
