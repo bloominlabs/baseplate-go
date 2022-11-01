@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"github.com/grafana/dskit/flagext"
 	"github.com/pelletier/go-toml/v2"
@@ -39,8 +40,10 @@ func ParseConfigFileParameter(args []string) (configFile string) {
 	return
 }
 
-func SetupConfiguration(cfg Configuration, logger zerolog.Logger) error {
+func SetupConfiguration(cfg Configuration, logger zerolog.Logger) (Watcher, error) {
 	configFile := ParseConfigFileParameter(os.Args[1:])
+
+	var watcher Watcher
 
 	// This sets default values from flags to the config.
 	// It needs to be called before parsing the config file!
@@ -48,14 +51,20 @@ func SetupConfiguration(cfg Configuration, logger zerolog.Logger) error {
 	if configFile != "" {
 		err := ReadConfiguration(configFile, &cfg, logger)
 		if err != nil {
-			return fmt.Errorf("failed to read %s: %w", configFile, err)
+			return watcher, fmt.Errorf("failed to read %s: %w", configFile, err)
 		}
+
+		w, err := NewRateLimitedFileWatcher([]string{configFile}, logger, time.Second*5)
+		if err != nil {
+			return watcher, fmt.Errorf("failed to create file watcher for %s: %w", configFile, err)
+		}
+		watcher = w
 	}
 
 	flagext.IgnoredFlag(flag.CommandLine, CONFIG_FILE_FLAG, "Configuration file to load.")
 	flag.Parse()
 
-	return nil
+	return watcher, nil
 }
 
 func ReadConfiguration(file string, config interface{}, logger zerolog.Logger) error {
