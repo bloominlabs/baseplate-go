@@ -93,6 +93,11 @@ func (t *TelemetryConfig) InitializeTelemetry(ctx context.Context, serviceName s
 		if err != nil {
 			return fmt.Errorf("failed to create OTLP certificate watcher: %w", err)
 		}
+		t.watcher = w
+		_, err = t.watcher.Start(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to start certificate watcher: %w", err)
+		}
 		ca, err := os.ReadFile(t.OTLPCAPath)
 		if err != nil {
 			return fmt.Errorf("can't read ca file from %s", t.OTLPCAPath)
