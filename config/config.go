@@ -74,7 +74,6 @@ func DecodeConfiguration(file string, config interface{}, logger zerolog.Logger)
 	}
 
 	err = toml.NewDecoder(bytes.NewReader(out)).DisallowUnknownFields().Decode(config)
-	fmt.Println(string(out), config)
 	if err != nil {
 		var details *toml.StrictMissingError
 		if !errors.As(err, &details) {
