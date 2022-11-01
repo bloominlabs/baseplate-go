@@ -73,7 +73,7 @@ func ReadConfiguration(file string, config interface{}, logger zerolog.Logger) e
 		logger.Fatal().Err(err).Str("configFile", file).Msg("failed to read configuration file")
 	}
 
-	err = toml.NewDecoder(bytes.NewReader(out)).DisallowUnknownFields().Decode(&config)
+	err = toml.NewDecoder(bytes.NewReader(out)).DisallowUnknownFields().Decode(config)
 	if err != nil {
 		var details *toml.StrictMissingError
 		if !errors.As(err, &details) {
