@@ -27,7 +27,6 @@ func WithDefaultTracingOpts() []sdktrace.TracerProviderOption {
 
 // Initializes an OTLP exporter, and configures the corresponding trace and
 // metric providers.
-//
 func InitTraceProvider(addr string, creds *credentials.TransportCredentials, opts ...sdktrace.TracerProviderOption) (func(), error) {
 	ctx := context.Background()
 
