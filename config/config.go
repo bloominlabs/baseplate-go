@@ -40,14 +40,18 @@ func ParseConfigFileParameter(args []string) (configFile string) {
 	return
 }
 
-func SetupConfiguration(cfg Configuration, logger zerolog.Logger) (Watcher, error) {
+func SetupConfiguration(cfg interface{}, logger zerolog.Logger) (Watcher, error) {
 	configFile := ParseConfigFileParameter(os.Args[1:])
 
 	var watcher Watcher
 
 	// This sets default values from flags to the config.
 	// It needs to be called before parsing the config file!
-	cfg.RegisterFlags(flag.CommandLine)
+	convertedCfg, ok := cfg.(Configuration)
+	if !ok {
+		return watcher, fmt.Errorf("could not convert passed config to 'Configuration' interface. Does it implemeted RegisterFlags correctly?")
+	}
+	convertedCfg.RegisterFlags(flag.CommandLine)
 	if configFile != "" {
 		err := ReadConfiguration(configFile, &cfg, logger)
 		if err != nil {
