@@ -40,7 +40,7 @@ func (c *ServerConfig) NewServer(mux *http.ServeMux, logger zerolog.Logger) (*ht
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	if c.CertPath != "" || c.KeyPath != "" {
-		w, err := NewCertificateWatcher(c.KeyPath, c.KeyPath, logger, time.Second*5)
+		w, err := NewCertificateWatcher(c.CertPath, c.KeyPath, logger, time.Second*5)
 		if err != nil {
 
 			logger.Fatal().Err(err).Msg("failed to create certificate watcher")
