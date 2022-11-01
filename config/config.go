@@ -40,20 +40,16 @@ func ParseConfigFileParameter(args []string) (configFile string) {
 	return
 }
 
-func SetupConfiguration(cfg interface{}, logger zerolog.Logger) (Watcher, error) {
+func ParseConfiguration(cfg Configuration, logger zerolog.Logger) (*Watcher, error) {
 	configFile := ParseConfigFileParameter(os.Args[1:])
 
-	var watcher Watcher
+	var watcher *Watcher
 
 	// This sets default values from flags to the config.
 	// It needs to be called before parsing the config file!
-	convertedCfg, ok := cfg.(Configuration)
-	if !ok {
-		return watcher, fmt.Errorf("could not convert passed config to 'Configuration' interface. Does it implemeted RegisterFlags correctly?")
-	}
-	convertedCfg.RegisterFlags(flag.CommandLine)
+	cfg.RegisterFlags(flag.CommandLine)
 	if configFile != "" {
-		err := ReadConfiguration(configFile, &cfg, logger)
+		err := DecodeConfiguration(configFile, cfg, logger)
 		if err != nil {
 			return watcher, fmt.Errorf("failed to read %s: %w", configFile, err)
 		}
@@ -62,7 +58,7 @@ func SetupConfiguration(cfg interface{}, logger zerolog.Logger) (Watcher, error)
 		if err != nil {
 			return watcher, fmt.Errorf("failed to create file watcher for %s: %w", configFile, err)
 		}
-		watcher = w
+		watcher = &w
 	}
 
 	flagext.IgnoredFlag(flag.CommandLine, CONFIG_FILE_FLAG, "Configuration file to load.")
@@ -71,13 +67,14 @@ func SetupConfiguration(cfg interface{}, logger zerolog.Logger) (Watcher, error)
 	return watcher, nil
 }
 
-func ReadConfiguration(file string, config interface{}, logger zerolog.Logger) error {
+func DecodeConfiguration(file string, config interface{}, logger zerolog.Logger) error {
 	out, err := os.ReadFile(file)
 	if err != nil {
 		logger.Fatal().Err(err).Str("configFile", file).Msg("failed to read configuration file")
 	}
 
 	err = toml.NewDecoder(bytes.NewReader(out)).DisallowUnknownFields().Decode(config)
+	fmt.Println(string(out), config)
 	if err != nil {
 		var details *toml.StrictMissingError
 		if !errors.As(err, &details) {
