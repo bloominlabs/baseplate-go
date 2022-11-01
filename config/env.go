@@ -28,3 +28,15 @@ func MustGetEnvStr(key string) string {
 	}
 	return value
 }
+
+func GetEnvInt(key string, def int) (int, error) {
+	strValue := os.Getenv(key)
+	if strValue == "" {
+		return def, nil
+	}
+	v, err := strconv.Atoi(strValue)
+	if err != nil {
+		return 0, err
+	}
+	return v, nil
+}
