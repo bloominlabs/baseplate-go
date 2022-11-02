@@ -11,7 +11,7 @@ type TailscaleConfig struct {
 	sync.RWMutex
 
 	Tailnet  string
-	ApiToken string `toml:"token"`
+	ApiToken string `toml:"api_token"`
 	BaseURL  string
 	client   *tailscale.Client
 }
