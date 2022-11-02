@@ -41,3 +41,23 @@ func GetEnvInt(key string, def int) (int, error) {
 	}
 	return v, nil
 }
+
+func GetEnvBool(key string, def bool) (bool, error) {
+	strValue := os.Getenv(key)
+	if strValue == "" {
+		return def, nil
+	}
+	v, err := strconv.ParseBool(strValue)
+	if err != nil {
+		return false, err
+	}
+	return v, nil
+}
+
+func MustGetEnvBool(key string, def bool) bool {
+	v, err := GetEnvBool(key, def)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
