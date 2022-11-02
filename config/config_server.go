@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"net/http/pprof"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -20,20 +21,31 @@ type ServerConfig struct {
 }
 
 func (c *ServerConfig) RegisterFlags(f *flag.FlagSet, prefix string) {
-	flag.StringVar(&c.Address, fmt.Sprintf("%s.addr", prefix), getenv("NOMAD_ADDR_server", ":8080"), "hostname:port to connect to server")
+	flag.StringVar(&c.Address, fmt.Sprintf("%s.addr", prefix), GetEnvDefault(fmt.Sprintf("NOMAD_ADDR_%s", prefix), ":8080"), "hostname:port to connect to server")
 
 	flag.StringVar(&c.CertPath, fmt.Sprintf("%s.tls.cert.path", prefix), "", "Path to the TLS certificate file")
 	flag.StringVar(&c.KeyPath, fmt.Sprintf("%s.tls.key.path", prefix), "", "Path to the TLS key file")
 }
 
-func (c *ServerConfig) NewServer(mux *http.ServeMux, logger zerolog.Logger) (*http.Server, error) {
+func (c *ServerConfig) UseCommonRoutes(mux *http.ServeMux, public bool) {
 	mux.HandleFunc("/.well-known/healthcheck", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("ok"))
 	})
 
+	if !public {
+		// handling pprof
+		mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+		mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+		mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+		mux.HandleFunc("/debug/pprof/", pprof.Index)
+	}
+}
+
+func (c *ServerConfig) NewServer(handler http.Handler, logger zerolog.Logger) (*http.Server, error) {
 	server := &http.Server{
 		Addr:              c.Address,
-		Handler:           mux,
+		Handler:           handler,
 		ReadTimeout:       5 * time.Second,
 		WriteTimeout:      5 * time.Second,
 		IdleTimeout:       30 * time.Second,
