@@ -53,8 +53,7 @@ func InitTraceProvider(addr string, creds *credentials.TransportCredentials, opt
 
 	// Register the trace exporter with a TracerProvider, using a batch
 	// span processor to aggregate spans before export.
-	bsp := sdktrace.NewBatchSpanProcessor(traceExporter)
-	defaultOpts := []sdktrace.TracerProviderOption{sdktrace.WithSampler(sdktrace.AlwaysSample()), sdktrace.WithSpanProcessor(bsp)}
+	defaultOpts := []sdktrace.TracerProviderOption{sdktrace.WithSampler(sdktrace.AlwaysSample()), sdktrace.WithBatcher(traceExporter)}
 	opts = append(defaultOpts, opts...)
 	tracerProvider := sdktrace.NewTracerProvider(
 		opts...,

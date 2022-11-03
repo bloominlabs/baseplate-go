@@ -18,6 +18,7 @@ import (
 	"github.com/sethvargo/go-limiter/httplimit"
 	"github.com/sethvargo/go-limiter/memorystore"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -106,6 +107,7 @@ func OTLPHandler(serviceName string) func(http.Handler) http.Handler {
 			h,
 			serviceName,
 			otelhttp.WithMessageEvents(otelhttp.ReadEvents, otelhttp.WriteEvents),
+			otelhttp.WithPropagators(propagation.TraceContext{}),
 		)
 	}
 }
