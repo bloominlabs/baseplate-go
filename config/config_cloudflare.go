@@ -2,7 +2,6 @@ package config
 
 import (
 	"flag"
-	"fmt"
 	"sync"
 
 	"github.com/cloudflare/cloudflare-go"
