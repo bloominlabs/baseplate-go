@@ -62,9 +62,7 @@ func (c *CloudflareConfig) CreateClient() (*cloudflare.API, error) {
 		opts = append(opts, cloudflare.UsingRetryPolicy(c.RatelimitConfiguration.RetryPolicy.MaxRetries, c.RatelimitConfiguration.RetryPolicy.MinRetryDelay, c.RatelimitConfiguration.RetryPolicy.MaxRetryDelay))
 	}
 
-	fmt.Println(opts, c.BaseURL)
 	client, err := cloudflare.NewWithAPIToken(c.Token, opts...)
-	client.BaseURL = c.BaseURL
 	return client, err
 }
 
