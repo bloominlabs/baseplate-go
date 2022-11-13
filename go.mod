@@ -6,8 +6,8 @@ require (
 	github.com/auth0/go-auth0 v0.12.0
 	github.com/auth0/go-jwt-middleware/v2 v2.1.0
 	github.com/aws/aws-sdk-go-v2 v1.17.1
-	github.com/aws/aws-sdk-go-v2/config v1.17.10
-	github.com/aws/aws-sdk-go-v2/credentials v1.12.23
+	github.com/aws/aws-sdk-go-v2/config v1.18.0
+	github.com/aws/aws-sdk-go-v2/credentials v1.13.0
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.29.1
 	github.com/cloudflare/cloudflare-go v0.53.0
 	github.com/fsnotify/fsnotify v1.6.0
@@ -51,7 +51,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.13.19 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.11.25 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.13.8 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sts v1.17.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.17.2 // indirect
 	github.com/aws/smithy-go v1.13.4 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.1.3 // indirect
