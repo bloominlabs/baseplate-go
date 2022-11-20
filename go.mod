@@ -16,7 +16,7 @@ require (
 	github.com/hashicorp/consul/sdk v0.11.0
 	github.com/hashicorp/nomad/api v0.0.0-20221103033341-85f472189a2e
 	github.com/justinas/alice v1.2.0
-	github.com/pelletier/go-toml/v2 v2.0.5
+	github.com/pelletier/go-toml/v2 v2.0.6
 	github.com/rs/zerolog v1.28.0
 	github.com/sethvargo/go-limiter v0.7.2
 	github.com/stretchr/testify v1.8.1
