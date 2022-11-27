@@ -13,7 +13,7 @@ require (
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/grafana/dskit v0.0.0-20221102173529-7450e99ab017
 	github.com/hashicorp/consul/api v1.16.0
-	github.com/hashicorp/consul/sdk v0.12.0
+	github.com/hashicorp/consul/sdk v0.13.0
 	github.com/hashicorp/nomad/api v0.0.0-20221103033341-85f472189a2e
 	github.com/justinas/alice v1.2.0
 	github.com/pelletier/go-toml/v2 v2.0.6
@@ -74,6 +74,7 @@ require (
 	github.com/hashicorp/go-retryablehttp v0.7.1 // indirect
 	github.com/hashicorp/go-rootcerts v1.0.2 // indirect
 	github.com/hashicorp/go-uuid v1.0.2 // indirect
+	github.com/hashicorp/go-version v1.2.1 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/hashicorp/serf v0.10.1 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
