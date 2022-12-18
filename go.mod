@@ -3,7 +3,7 @@ module github.com/bloominlabs/baseplate-go
 go 1.19
 
 require (
-	github.com/auth0/go-auth0 v0.13.0
+	github.com/auth0/go-auth0 v0.13.1
 	github.com/auth0/go-jwt-middleware/v2 v2.1.0
 	github.com/aws/aws-sdk-go-v2 v1.17.2
 	github.com/aws/aws-sdk-go-v2/config v1.18.4
