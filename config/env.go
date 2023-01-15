@@ -14,7 +14,7 @@ func GetEnvStr(key string) (string, error) {
 	return value, nil
 }
 
-func GetEnvDefault(key string, def string) string {
+func GetEnvDefaultStr(key string, def string) string {
 	value := os.Getenv(key)
 	if value == "" {
 		return def
@@ -42,10 +42,10 @@ func GetEnvInt(key string, def int) (int, error) {
 	return v, nil
 }
 
-func GetEnvBool(key string, def bool) (bool, error) {
+func GetEnvBool(key string) (bool, error) {
 	strValue := os.Getenv(key)
 	if strValue == "" {
-		return def, nil
+		return false, fmt.Errorf("environment varialbe empty - %s", key)
 	}
 	v, err := strconv.ParseBool(strValue)
 	if err != nil {
@@ -54,8 +54,17 @@ func GetEnvBool(key string, def bool) (bool, error) {
 	return v, nil
 }
 
-func MustGetEnvBool(key string, def bool) bool {
-	v, err := GetEnvBool(key, def)
+func GetEnvBoolDefault(key string, def bool) bool {
+	value, err := GetEnvBool(key)
+	if err != nil {
+		return def
+	}
+
+	return value
+}
+
+func MustGetEnvBool(key string) bool {
+	v, err := GetEnvBool(key)
 	if err != nil {
 		panic(err)
 	}
