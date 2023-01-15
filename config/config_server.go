@@ -21,7 +21,7 @@ type ServerConfig struct {
 }
 
 func (c *ServerConfig) RegisterFlags(f *flag.FlagSet, prefix string) {
-	flag.StringVar(&c.Address, fmt.Sprintf("%s.addr", prefix), GetEnvDefault(fmt.Sprintf("NOMAD_ADDR_%s", prefix), ":8080"), "hostname:port to connect to server")
+	flag.StringVar(&c.Address, fmt.Sprintf("%s.addr", prefix), GetEnvStrDefault(fmt.Sprintf("NOMAD_ADDR_%s", prefix), ":8080"), "hostname:port to connect to server")
 
 	flag.StringVar(&c.CertPath, fmt.Sprintf("%s.tls.cert.path", prefix), "", "Path to the TLS certificate file")
 	flag.StringVar(&c.KeyPath, fmt.Sprintf("%s.tls.key.path", prefix), "", "Path to the TLS key file")

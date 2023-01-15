@@ -17,9 +17,9 @@ type ConsulConfig struct {
 }
 
 func (c *ConsulConfig) RegisterFlags(f *flag.FlagSet) {
-	flag.StringVar(&c.Address, "consul.addr", GetEnvDefault("CONSUL_HTTP_ADDR", "localhost:8500"), "hostname:port to connect to the consul server")
-	flag.StringVar(&c.Token, "consul.token", GetEnvDefault("CONSUL_HTTP_TOKEN", ""), "Token to use to authenticate to consul")
-	flag.BoolVar(&c.SSL, "consul.ssl", MustGetEnvBool("CONSUL_HTTP_SSL", false), "Token to use to authenticate to consul")
+	flag.StringVar(&c.Address, "consul.addr", GetEnvStrDefault("CONSUL_HTTP_ADDR", "localhost:8500"), "hostname:port to connect to the consul server")
+	flag.StringVar(&c.Token, "consul.token", GetEnvStrDefault("CONSUL_HTTP_TOKEN", ""), "Token to use to authenticate to consul")
+	flag.BoolVar(&c.SSL, "consul.ssl", GetEnvBoolDefault("CONSUL_HTTP_SSL", false), "Token to use to authenticate to consul")
 }
 
 func (c *ConsulConfig) Merge(other *ConsulConfig) error {

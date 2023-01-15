@@ -14,7 +14,7 @@ func GetEnvStr(key string) (string, error) {
 	return value, nil
 }
 
-func GetEnvDefaultStr(key string, def string) string {
+func GetEnvStrDefault(key string, def string) string {
 	value := os.Getenv(key)
 	if value == "" {
 		return def

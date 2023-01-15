@@ -17,10 +17,9 @@ type TailscaleConfig struct {
 }
 
 func (c *TailscaleConfig) RegisterFlags(f *flag.FlagSet) {
-	flag.StringVar(&c.Tailnet, "tailscale.tailnet", GetEnvDefault("TAILSCALE_TAILNET", "bloominlabs.com"), "tailnet to perform API operations on")
-	flag.StringVar(&c.ApiToken, "tailscale.api-token", GetEnvDefault("TAILSCALE_API_TOKEN", ""), "Token to use to authenticate to tailscale")
-	flag.StringVar(&c.BaseURL, "tailscale.base-url", GetEnvDefault("TAILSCALE_BASE_URL", ""), "Base URL to use for tailscale requests. normally used by tests")
-
+	flag.StringVar(&c.Tailnet, "tailscale.tailnet", GetEnvStrDefault("TAILSCALE_TAILNET", "bloominlabs.com"), "tailnet to perform API operations on")
+	flag.StringVar(&c.ApiToken, "tailscale.api-token", GetEnvStrDefault("TAILSCALE_API_TOKEN", ""), "Token to use to authenticate to tailscale")
+	flag.StringVar(&c.BaseURL, "tailscale.base-url", GetEnvStrDefault("TAILSCALE_BASE_URL", ""), "Base URL to use for tailscale requests. normally used by tests")
 }
 
 func (c *TailscaleConfig) Merge(other *TailscaleConfig) error {
