@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/auth0/go-jwt-middleware/v2"
@@ -32,6 +33,19 @@ func (c StratosOAuth2CustomClaims) Validate(ctx context.Context) error {
 	return nil
 }
 
+func (c *StratosOAuth2CustomClaims) HasScope(requestedScope string) bool {
+	scopes := strings.Split(c.Scope, " ")
+	for _, scope := range scopes {
+		if requestedScope == scope {
+			return true
+		}
+	}
+
+	return false
+}
+
+// Deprecated: The StratosOAuth2CustomClaims struct now has the 'HasScope'
+// function which can be used instead
 func HasScope(requestedScope string, scopes []string) bool {
 	for _, scope := range scopes {
 		if requestedScope == scope {
@@ -61,6 +75,20 @@ func HasScope(requestedScope string, scopes []string) bool {
 func JWTClaimsValue(ctx context.Context) (*validator.ValidatedClaims, bool) {
 	raw, ok := ctx.Value(jwtmiddleware.ContextKey{}).(*validator.ValidatedClaims)
 	return raw, ok
+}
+
+func CustomClaims(ctx context.Context) (*StratosOAuth2CustomClaims, error) {
+	raw, ok := JWTClaimsValue(ctx)
+	if !ok {
+		return nil, fmt.Errorf("did not find JWT in context with the ContextKey. did you run the JWT middleware?")
+	}
+
+	customClaims, ok := raw.CustomClaims.(*StratosOAuth2CustomClaims)
+	if !ok {
+		return nil, fmt.Errorf("failed to convert custom claims returned to StratosOAuth2CustomClaims")
+	}
+
+	return customClaims, nil
 }
 
 func ErrorHandler(w http.ResponseWriter, r *http.Request, err error) {
