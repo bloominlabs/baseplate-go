@@ -17,7 +17,7 @@ require (
 	github.com/hashicorp/nomad/api v0.0.0-20230113190646-7ff317756955
 	github.com/justinas/alice v1.2.0
 	github.com/pelletier/go-toml/v2 v2.0.6
-	github.com/rs/zerolog v1.28.0
+	github.com/rs/zerolog v1.29.0
 	github.com/sethvargo/go-limiter v0.7.2
 	github.com/stretchr/testify v1.8.1
 	github.com/tailscale/tailscale-client-go v1.8.0
