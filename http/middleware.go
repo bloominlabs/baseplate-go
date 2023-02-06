@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/auth0/go-jwt-middleware/v2"
+	jwtmiddleware "github.com/auth0/go-jwt-middleware/v2"
 	"github.com/auth0/go-jwt-middleware/v2/jwks"
 	"github.com/auth0/go-jwt-middleware/v2/validator"
 	"github.com/justinas/alice"
@@ -169,6 +169,7 @@ func JWTMiddleware(issuerURL string, identifiers []string, opts ...validator.Opt
 	}
 	return jwtmiddleware.New(
 		jwtValidator.ValidateToken,
+		jwtmiddleware.WithCredentialsOptional(true),
 		jwtmiddleware.WithErrorHandler(ErrorHandler),
 	).CheckJWT
 }
