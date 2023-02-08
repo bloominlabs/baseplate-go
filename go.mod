@@ -22,14 +22,14 @@ require (
 	github.com/stretchr/testify v1.8.1
 	github.com/tailscale/tailscale-client-go v1.8.0
 	go.opentelemetry.io/contrib/instrumentation/github.com/aws/aws-sdk-go-v2/otelaws v0.38.0
-	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.38.0
-	go.opentelemetry.io/otel v1.12.0
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.39.0
+	go.opentelemetry.io/otel v1.13.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v0.35.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.12.0
-	go.opentelemetry.io/otel/metric v0.35.0
+	go.opentelemetry.io/otel/metric v0.36.0
 	go.opentelemetry.io/otel/sdk v1.12.0
 	go.opentelemetry.io/otel/sdk/metric v0.35.0
-	go.opentelemetry.io/otel/trace v1.12.0
+	go.opentelemetry.io/otel/trace v1.13.0
 	google.golang.org/grpc v1.52.3
 )
 
