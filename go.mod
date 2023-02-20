@@ -8,7 +8,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.17.4
 	github.com/aws/aws-sdk-go-v2/config v1.18.12
 	github.com/aws/aws-sdk-go-v2/credentials v1.13.12
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.30.2
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.30.3
 	github.com/cloudflare/cloudflare-go v0.60.0
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/grafana/dskit v0.0.0-20230111180857-b7acbc317b1c
@@ -42,7 +42,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.28 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.22 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.3.29 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/v4a v1.0.19 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/v4a v1.0.20 // indirect
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.18.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.9.11 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.1.23 // indirect
