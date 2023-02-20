@@ -9,7 +9,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.18.13
 	github.com/aws/aws-sdk-go-v2/credentials v1.13.13
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.30.2
-	github.com/cloudflare/cloudflare-go v0.60.0
+	github.com/cloudflare/cloudflare-go v0.61.0
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/grafana/dskit v0.0.0-20230111180857-b7acbc317b1c
 	github.com/hashicorp/consul/api v1.18.0
