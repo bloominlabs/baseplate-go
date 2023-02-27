@@ -12,7 +12,7 @@ require (
 	github.com/cloudflare/cloudflare-go v0.61.0
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/grafana/dskit v0.0.0-20230111180857-b7acbc317b1c
-	github.com/hashicorp/consul/api v1.18.0
+	github.com/hashicorp/consul/api v1.19.1
 	github.com/hashicorp/consul/sdk v0.13.1
 	github.com/hashicorp/nomad/api v0.0.0-20230113190646-7ff317756955
 	github.com/justinas/alice v1.2.0
