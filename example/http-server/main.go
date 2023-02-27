@@ -33,14 +33,6 @@ var bindPort string
 
 var withObservability bool
 
-func getenv(key, def string) string {
-	if val, ok := os.LookupEnv(key); ok == true {
-		return val
-	}
-
-	return def
-}
-
 type Config struct {
 	Telemetry bConfig.TelemetryConfig `toml:"telemetry"`
 

@@ -16,8 +16,8 @@ type NomadConfig struct {
 }
 
 func (c *NomadConfig) RegisterFlags(f *flag.FlagSet) {
-	flag.StringVar(&c.Address, "nomad.addr", getenv("NOMAD_ADDR", "localhost:4646"), "hostname:port to connect to the nomad server")
-	flag.StringVar(&c.Token, "noamd.token", getenv("NOMAD_TOKEN", ""), "Token to use to authenticate to nomad")
+	flag.StringVar(&c.Address, "nomad.addr", GetEnvStrDefault("NOMAD_ADDR", "localhost:4646"), "hostname:port to connect to the nomad server")
+	flag.StringVar(&c.Token, "noamd.token", GetEnvStrDefault("NOMAD_TOKEN", ""), "Token to use to authenticate to nomad")
 }
 
 func (c *NomadConfig) Merge(other *NomadConfig) error {

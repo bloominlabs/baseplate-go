@@ -33,10 +33,10 @@ type TelemetryConfig struct {
 }
 
 func (t *TelemetryConfig) RegisterFlags(f *flag.FlagSet) {
-	flag.StringVar(&t.OTLPAddr, "otlp.addr", getenv("OTLP_ADDR", "localhost:4317"), "hostname:port for OTLP.grpc protocol on remote OTLP receiver")
-	flag.StringVar(&t.OTLPCAPath, "otlp.ca.path", getenv("OTLP_CA_PATH", ""), "Path to certificate authority used to verify outgoing OTLP receiver connections")
-	flag.StringVar(&t.OTLPCertPath, "otlp.cert.path", getenv("OTLP_CERT_PATH", ""), "Path to certificate to encrypt outgoing OTLP receiver connections")
-	flag.StringVar(&t.OTLPKeyPath, "otlp.key.path", getenv("OTLP_KEY_PATH", ""), "Path to private key to encrypt outgoing OTLP receiver connections")
+	flag.StringVar(&t.OTLPAddr, "otlp.addr", GetEnvStrDefault("OTLP_ADDR", "localhost:4317"), "hostname:port for OTLP.grpc protocol on remote OTLP receiver")
+	flag.StringVar(&t.OTLPCAPath, "otlp.ca.path", GetEnvStrDefault("OTLP_CA_PATH", ""), "Path to certificate authority used to verify outgoing OTLP receiver connections")
+	flag.StringVar(&t.OTLPCertPath, "otlp.cert.path", GetEnvStrDefault("OTLP_CERT_PATH", ""), "Path to certificate to encrypt outgoing OTLP receiver connections")
+	flag.StringVar(&t.OTLPKeyPath, "otlp.key.path", GetEnvStrDefault("OTLP_KEY_PATH", ""), "Path to private key to encrypt outgoing OTLP receiver connections")
 	flag.BoolVar(&t.Insecure, "otlp.insecure", false, "Emit OTLP without needing mTLS certificate")
 
 }
@@ -189,12 +189,4 @@ func (t *TelemetryConfig) Shutdown(ctx context.Context, logger zerolog.Logger) e
 	}
 
 	return nil
-}
-
-func getenv(key, def string) string {
-	val := os.Getenv("key")
-	if val == "" {
-		return def
-	}
-	return val
 }
