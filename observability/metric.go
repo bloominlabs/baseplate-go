@@ -88,7 +88,7 @@ func InitMetricsProvider(addr string, credentials *credentials.TransportCredenti
 	// )
 
 	return func() {
-		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 		defer cancel()
 		err := provider.Shutdown(ctx)
 		if err != nil {

@@ -64,7 +64,7 @@ func InitTraceProvider(addr string, creds *credentials.TransportCredentials, opt
 	otel.SetTextMapPropagator(propagation.TraceContext{})
 
 	return func() {
-		ctx, cancel := context.WithTimeout(ctx, time.Second)
+		ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 		defer cancel()
 
 		if err := tracerProvider.Shutdown(ctx); err != nil {
