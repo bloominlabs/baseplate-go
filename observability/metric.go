@@ -32,8 +32,6 @@ func WithDefaultMetricOpts() []metric.Option {
 // tandem when https://github.com/open-telemetry/opentelemetry-go/pull/2587 is
 // deployed.
 func InitMetricsProvider(addr string, credentials *credentials.TransportCredentials, opts ...metric.Option) (func(), error) {
-	ctx := context.Background()
-
 	grpcCreds := insecure.NewCredentials()
 	if credentials != nil {
 		grpcCreds = *credentials
@@ -44,7 +42,7 @@ func InitMetricsProvider(addr string, credentials *credentials.TransportCredenti
 	// `localhost:30080` endpoint. Otherwise, replace `localhost` with the
 	// endpoint of your cluster. If you run the app inside k8s, then you can
 	// probably connect directly to the service through dns
-	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	con, err := grpc.DialContext(ctx, addr, grpc.WithTransportCredentials(grpcCreds), grpc.FailOnNonTempDialError(true), grpc.WithBlock())
 	if err != nil {
@@ -88,7 +86,7 @@ func InitMetricsProvider(addr string, credentials *credentials.TransportCredenti
 	// )
 
 	return func() {
-		ctx, cancel := context.WithTimeout(ctx, time.Second*5)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
 		err := provider.Shutdown(ctx)
 		if err != nil {
