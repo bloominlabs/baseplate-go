@@ -25,10 +25,10 @@ type DigitalOceanSpacesConfig struct {
 }
 
 func (c *DigitalOceanSpacesConfig) RegisterFlags(f *flag.FlagSet) {
-	flag.StringVar(&c.Region, "spaces.region", GetEnvStrDefault("SPACES_REGION", "sfo3"), "Region to use in querys")
-	flag.StringVar(&c.Endpoint, "spaces.endpoint", GetEnvStrDefault("SPACES_ENDPOINT", "digitaloceanspaces.com"), "Endpoint to use for queries")
-	flag.StringVar(&c.AccessKeyID, "spaces.access_key_id", GetEnvStrDefault("AWS_ACCESS_KEY_ID", GetEnvStrDefault("SPACES_ACCESS_KEY_ID", "")), "Spaces Access Key ID for authentication")
-	flag.StringVar(&c.SecretKey, "spaces.secret_key", GetEnvStrDefault("AWS_SECRET_ACCESS_KEY", GetEnvStrDefault("SPACES_SECRET_ACCESS_KEY", "")), "Spaces Secret Access Key for authentication")
+	f.StringVar(&c.Region, "spaces.region", GetEnvStrDefault("SPACES_REGION", "sfo3"), "Region to use in querys")
+	f.StringVar(&c.Endpoint, "spaces.endpoint", GetEnvStrDefault("SPACES_ENDPOINT", "digitaloceanspaces.com"), "Endpoint to use for queries")
+	f.StringVar(&c.AccessKeyID, "spaces.access_key_id", GetEnvStrDefault("AWS_ACCESS_KEY_ID", GetEnvStrDefault("SPACES_ACCESS_KEY_ID", "")), "Spaces Access Key ID for authentication")
+	f.StringVar(&c.SecretKey, "spaces.secret_key", GetEnvStrDefault("AWS_SECRET_ACCESS_KEY", GetEnvStrDefault("SPACES_SECRET_ACCESS_KEY", "")), "Spaces Secret Access Key for authentication")
 }
 
 func (c *DigitalOceanSpacesConfig) Merge(other *DigitalOceanSpacesConfig) error {

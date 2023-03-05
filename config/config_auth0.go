@@ -23,10 +23,10 @@ type Auth0Config struct {
 }
 
 func (c *Auth0Config) RegisterFlags(f *flag.FlagSet) {
-	flag.StringVar(&c.Domain, "auth0.domain", GetEnvStrDefault("AUTH0_DOMAIN", DefaultAuth0Domain), "hostname:port to connect to the nomad server")
-	flag.StringVar(&c.Token, "auth0.token", GetEnvStrDefault("AUTH0_TOKEN", ""), "Token to use to authenticate to auth0 (can be used instead of auth0.client_id + auth0.client_secret)")
-	flag.StringVar(&c.ClientID, "auth0.client_id", GetEnvStrDefault("AUTH0_CLIENT_ID", ""), "Auth0 Management Client ID to authenticate to auth0 (can be used instead of auth0.token)")
-	flag.StringVar(&c.ClientSecret, "auth0.client_secret", GetEnvStrDefault("AUTH0_CLIENT_SECRET", ""), "Auth0 Management Client Secret with capability to create users (can be used ins tead of auth0.client_token")
+	f.StringVar(&c.Domain, "auth0.domain", GetEnvStrDefault("AUTH0_DOMAIN", DefaultAuth0Domain), "hostname:port to connect to the nomad server")
+	f.StringVar(&c.Token, "auth0.token", GetEnvStrDefault("AUTH0_TOKEN", ""), "Token to use to authenticate to auth0 (can be used instead of auth0.client_id + auth0.client_secret)")
+	f.StringVar(&c.ClientID, "auth0.client_id", GetEnvStrDefault("AUTH0_CLIENT_ID", ""), "Auth0 Management Client ID to authenticate to auth0 (can be used instead of auth0.token)")
+	f.StringVar(&c.ClientSecret, "auth0.client_secret", GetEnvStrDefault("AUTH0_CLIENT_SECRET", ""), "Auth0 Management Client Secret with capability to create users (can be used ins tead of auth0.client_token")
 }
 
 func (c *Auth0Config) Merge(other *Auth0Config) error {

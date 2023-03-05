@@ -1,4 +1,4 @@
-package config
+package telemetry
 
 import (
 	"context"
@@ -17,6 +17,7 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
 	"google.golang.org/grpc/credentials"
 
+	"github.com/bloominlabs/baseplate-go/config"
 	"github.com/bloominlabs/baseplate-go/observability"
 )
 
@@ -29,15 +30,15 @@ type TelemetryConfig struct {
 
 	metricsCleanup *func()
 	tracingCleanup *func()
-	watcher        *CertificateWatcher
+	watcher        *config.CertificateWatcher
 }
 
 func (t *TelemetryConfig) RegisterFlags(f *flag.FlagSet) {
-	flag.StringVar(&t.OTLPAddr, "otlp.addr", GetEnvStrDefault("OTLP_ADDR", "localhost:4317"), "hostname:port for OTLP.grpc protocol on remote OTLP receiver")
-	flag.StringVar(&t.OTLPCAPath, "otlp.ca.path", GetEnvStrDefault("OTLP_CA_PATH", ""), "Path to certificate authority used to verify outgoing OTLP receiver connections")
-	flag.StringVar(&t.OTLPCertPath, "otlp.cert.path", GetEnvStrDefault("OTLP_CERT_PATH", ""), "Path to certificate to encrypt outgoing OTLP receiver connections")
-	flag.StringVar(&t.OTLPKeyPath, "otlp.key.path", GetEnvStrDefault("OTLP_KEY_PATH", ""), "Path to private key to encrypt outgoing OTLP receiver connections")
-	flag.BoolVar(&t.Insecure, "otlp.insecure", false, "Emit OTLP without needing mTLS certificate")
+	f.StringVar(&t.OTLPAddr, "otlp.addr", config.GetEnvStrDefault("OTLP_ADDR", "localhost:4317"), "hostname:port for OTLP.grpc protocol on remote OTLP receiver")
+	f.StringVar(&t.OTLPCAPath, "otlp.ca.path", config.GetEnvStrDefault("OTLP_CA_PATH", ""), "Path to certificate authority used to verify outgoing OTLP receiver connections")
+	f.StringVar(&t.OTLPCertPath, "otlp.cert.path", config.GetEnvStrDefault("OTLP_CERT_PATH", ""), "Path to certificate to encrypt outgoing OTLP receiver connections")
+	f.StringVar(&t.OTLPKeyPath, "otlp.key.path", config.GetEnvStrDefault("OTLP_KEY_PATH", ""), "Path to private key to encrypt outgoing OTLP receiver connections")
+	f.BoolVar(&t.Insecure, "otlp.insecure", false, "Emit OTLP without needing mTLS certificate")
 
 }
 
@@ -89,7 +90,7 @@ func (t *TelemetryConfig) InitializeTelemetry(ctx context.Context, serviceName s
 	var creds *credentials.TransportCredentials
 	if t.OTLPCAPath != "" || t.OTLPCertPath != "" || t.OTLPKeyPath != "" {
 		logger.Debug().Str("caPath", t.OTLPCAPath).Str("certPath", t.OTLPCertPath).Str("keyPath", t.OTLPKeyPath).Msg("detected mTLS credentials")
-		w, err := NewCertificateWatcher(t.OTLPCertPath, t.OTLPKeyPath, logger, time.Second*5)
+		w, err := config.NewCertificateWatcher(t.OTLPCertPath, t.OTLPKeyPath, logger, time.Second*5)
 		if err != nil {
 			return fmt.Errorf("failed to create OTLP certificate watcher: %w", err)
 		}

@@ -30,8 +30,8 @@ type CloudflareConfig struct {
 }
 
 func (c *CloudflareConfig) RegisterFlags(f *flag.FlagSet) {
-	flag.StringVar(&c.Token, "cloudflare.token", GetEnvStrDefault("CLOUDFLARE_API_TOKEN", ""), "Cloudflare API token toauthenticate")
-	flag.StringVar(&c.BaseURL, "cloudflare.base-url", GetEnvStrDefault("CLOUDFLARE_BASE_URL", ""), "Base URL to use for requests. normally used by tests")
+	f.StringVar(&c.Token, "cloudflare.token", GetEnvStrDefault("CLOUDFLARE_API_TOKEN", ""), "Cloudflare API token toauthenticate")
+	f.StringVar(&c.BaseURL, "cloudflare.base-url", GetEnvStrDefault("CLOUDFLARE_BASE_URL", ""), "Base URL to use for requests. normally used by tests")
 }
 
 func (c *CloudflareConfig) Merge(other *CloudflareConfig) error {
