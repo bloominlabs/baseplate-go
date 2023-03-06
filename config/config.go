@@ -12,6 +12,8 @@ import (
 	"github.com/grafana/dskit/flagext"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/rs/zerolog"
+
+	"github.com/bloominlabs/baseplate-go/config/filesystem"
 )
 
 const CONFIG_FILE_FLAG = "config.file"
@@ -40,10 +42,10 @@ func ParseConfigFileParameter(args []string) (configFile string) {
 	return
 }
 
-func ParseConfiguration(cfg Configuration, logger zerolog.Logger) (*Watcher, error) {
+func ParseConfiguration(cfg Configuration, logger zerolog.Logger) (*filesystem.Watcher, error) {
 	configFile := ParseConfigFileParameter(os.Args[1:])
 
-	var watcher *Watcher
+	var watcher *filesystem.Watcher
 
 	// This sets default values from flags to the config.
 	// It needs to be called before parsing the config file!
@@ -54,7 +56,7 @@ func ParseConfiguration(cfg Configuration, logger zerolog.Logger) (*Watcher, err
 			return watcher, fmt.Errorf("failed to read %s: %w", configFile, err)
 		}
 
-		w, err := NewRateLimitedFileWatcher([]string{configFile}, logger, time.Second*5)
+		w, err := filesystem.NewRateLimitedFileWatcher([]string{configFile}, logger, time.Second*5)
 		if err != nil {
 			return watcher, fmt.Errorf("failed to create file watcher for %s: %w", configFile, err)
 		}

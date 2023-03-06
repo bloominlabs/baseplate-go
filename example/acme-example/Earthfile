@@ -1,14 +1,15 @@
 VERSION 0.6
 
-FROM golang:1.17
+FROM golang:1.20
 WORKDIR /acme-example
 
 deps:
   COPY go.mod go.sum ./
-	RUN go mod download
+  COPY --dir ../../../baseplate-go+artifact-config/config ../../
+  RUN go mod download
   # Output these back in case go mod download changes them.
-	SAVE ARTIFACT go.mod AS LOCAL go.mod
-	SAVE ARTIFACT go.sum AS LOCAL go.sum
+  SAVE ARTIFACT go.mod AS LOCAL go.mod
+  SAVE ARTIFACT go.sum AS LOCAL go.sum
 
 build:
   FROM +deps
