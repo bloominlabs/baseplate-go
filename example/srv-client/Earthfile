@@ -1,0 +1,27 @@
+VERSION 0.6
+
+FROM golang:1.20
+WORKDIR /srv-client
+
+deps:
+  COPY go.mod go.sum ./
+
+  COPY --dir ../../../baseplate-go+artifact-config/config ../../
+  COPY --dir ../../../baseplate-go+artifact-http/http ../../
+
+  RUN go mod download
+  # Output these back in case go mod download changes them.
+  SAVE ARTIFACT go.mod AS LOCAL go.mod
+  SAVE ARTIFACT go.sum AS LOCAL go.sum
+
+build:
+  FROM +deps
+  COPY *.go .
+  RUN CGO_ENABLED=0 go build -trimpath -ldflags='-s -w -extldflags "-static"' -o bin/srv-client github.com/bloominlabs/hostin-proj/srv-client
+  SAVE ARTIFACT bin/srv-client /srv-client AS LOCAL bin/srv-client
+
+docker:
+  FROM gcr.io/distroless/base-debian11:debug
+  COPY ./bin/srv-client /usr/bin/srv-client
+  ENTRYPOINT ["/usr/bin/srv-client"]
+  SAVE IMAGE --push ghcr.io/bloominlabs/srv-client:latest
