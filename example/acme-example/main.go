@@ -1,4 +1,3 @@
-// TODO https://github.com/cert-manager/cert-manager/issues/2131
 package main
 
 import (
@@ -57,6 +56,7 @@ func main() {
 		hlog.FromRequest(r).Info().Msg("received request!")
 		w.Write([]byte("Hello world"))
 	})
+	cfg.Server.UseCommonRoutes(mux, false)
 	server, err := cfg.Server.NewServer(chain.Then(mux), log.Logger)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to create server")

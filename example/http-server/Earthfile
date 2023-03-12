@@ -1,14 +1,18 @@
 # https://github.com/hashicorp/vault/pull/12358
 VERSION 0.6
-FROM golang:1.19
+FROM golang:1.20
 WORKDIR /loadchecker
 
 deps:
   COPY go.mod go.sum ./
+
+  COPY --dir ../../../baseplate-go+artifact-config/config ../../
+  COPY --dir ../../../baseplate-go+artifact-http/http ../../
+
   RUN go mod download
   # Output these back in case go mod download changes them.
   SAVE ARTIFACT go.mod AS LOCAL go.mod
-	SAVE ARTIFACT go.sum AS LOCAL go.sum
+  SAVE ARTIFACT go.sum AS LOCAL go.sum
 
 build:
   FROM +deps
