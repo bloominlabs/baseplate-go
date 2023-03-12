@@ -12,6 +12,11 @@ artifact-config:
     COPY ./config/ ./config/
     SAVE ARTIFACT ./config
 
+artifact-http:
+    FROM +deps
+    COPY ./http/ ./http/
+    SAVE ARTIFACT ./http
+
 artifact:
     FROM +deps
     COPY . .

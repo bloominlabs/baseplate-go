@@ -6,12 +6,15 @@ import (
 	"flag"
 	"net/http"
 
+	"github.com/justinas/alice"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/hlog"
 	"github.com/rs/zerolog/log"
 
 	"github.com/bloominlabs/baseplate-go/config"
 	"github.com/bloominlabs/baseplate-go/config/observability"
 	"github.com/bloominlabs/baseplate-go/config/server"
+	bHttp "github.com/bloominlabs/baseplate-go/http"
 )
 
 const SLUG = "acme-example"
@@ -39,31 +42,30 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to parse configuration")
 	}
 
-	if cfg.Telemetry.OTLPCAPath != "" || cfg.Telemetry.OTLPCertPath != "" || cfg.Telemetry.OTLPKeyPath != "" || cfg.Telemetry.Insecure {
-		if err := cfg.Telemetry.InitializeTelemetry(context.Background(), SLUG, log.Logger); err != nil {
-			log.Fatal().Err(err).Msg("failed to initialize telemetry")
-		}
-		defer cfg.Telemetry.Shutdown(context.Background(), log.Logger)
+	if err := cfg.Telemetry.InitializeTelemetry(context.Background(), SLUG, log.Logger); err != nil {
+		log.Fatal().Err(err).Msg("failed to initialize telemetry")
 	}
+	defer cfg.Telemetry.Shutdown(context.Background(), log.Logger)
 
+	chain := alice.New(
+		bHttp.OTLPHandler(SLUG),
+		bHttp.HlogHandler,
+		bHttp.RatelimiterMiddleware,
+	)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		hlog.FromRequest(r).Info().Msg("received request!")
 		w.Write([]byte("Hello world"))
 	})
-	server, err := cfg.Server.NewServer(mux, log.Logger)
+	server, err := cfg.Server.NewServer(chain.Then(mux), log.Logger)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to create server")
 	}
 	log.Logger.Info().Str("Addr", server.Addr).Msg("listening")
 
-	if server.TLSConfig != nil {
-		if err := server.ListenAndServeTLS("", ""); err != nil {
-			log.Fatal().Err(err).Msg("error while starting http server")
-		}
-	} else {
-		log.Warn().Msg("running http server without https. this is not allowed in production")
-		if err := server.ListenAndServe(); err != nil {
-			log.Fatal().Err(err).Msg("error while starting http server")
-		}
+	err = server.Listen()
+	defer server.Cleanup()
+	if err != nil {
+		log.Fatal().Err(err).Msg("error while listening to http server")
 	}
 }

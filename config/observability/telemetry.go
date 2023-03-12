@@ -16,6 +16,7 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/bloominlabs/baseplate-go/config/env"
 	"github.com/bloominlabs/baseplate-go/config/filesystem"
@@ -116,9 +117,9 @@ func (t *TelemetryConfig) InitializeTelemetry(ctx context.Context, serviceName s
 
 		conf := credentials.NewTLS(tlsConfig)
 		creds = &conf
-	}
-	if creds == nil && !t.Insecure {
-		return fmt.Errorf("'otlp.insecure' is not specified and no certificate provided")
+	} else if t.Insecure {
+		conf := insecure.NewCredentials()
+		creds = &conf
 	}
 
 	telemetryOptions := TelemetryOptions{}
@@ -152,7 +153,7 @@ func (t *TelemetryConfig) InitializeTelemetry(ctx context.Context, serviceName s
 		metricOpts = append(metricOpts, telemetryOptions.metricOptions...)
 	}
 
-	metricsCleanup, err := InitMetricsProvider(t.OTLPAddr, creds, metricOpts...)
+	metricsCleanup, err := InitMetricsProvider(logger, t.OTLPAddr, creds, metricOpts...)
 	if err != nil {
 		return fmt.Errorf("failed to initialize metric provider %w", err)
 	}
@@ -166,7 +167,7 @@ func (t *TelemetryConfig) InitializeTelemetry(ctx context.Context, serviceName s
 	}
 
 	log.Info().Str("OTLPAddr", t.OTLPAddr).Str("type", "tracing").Msg("initializing provider")
-	tracingCleanup, err := InitTraceProvider(t.OTLPAddr, creds, traceOpts...)
+	tracingCleanup, err := InitTraceProvider(logger, t.OTLPAddr, creds, traceOpts...)
 	if err != nil {
 		log.Fatal().Err(err).Str("OTLPAddr", t.OTLPAddr).Str("type", "tracing").Msg("failed to intialize provider")
 	}

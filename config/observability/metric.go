@@ -2,18 +2,21 @@ package observability
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
 	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
 
 	// runtimemetrics "go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
+	"go.opentelemetry.io/otel/exporters/stdout/stdoutmetric"
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/sdk/metric"
 
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
@@ -31,26 +34,42 @@ func WithDefaultMetricOpts() []metric.Option {
 // reworks the metrics API upstream to support globals. This will be updated in
 // tandem when https://github.com/open-telemetry/opentelemetry-go/pull/2587 is
 // deployed.
-func InitMetricsProvider(addr string, credentials *credentials.TransportCredentials, opts ...metric.Option) (func(), error) {
-	grpcCreds := insecure.NewCredentials()
+func InitMetricsProvider(logger zerolog.Logger, addr string, credentials *credentials.TransportCredentials, opts ...metric.Option) (func(), error) {
+	var exporter metric.Exporter
 	if credentials != nil {
-		grpcCreds = *credentials
-	}
+		logger.Info().Str("addr", addr).Msg("otlp parameters specified. connecting via grpc to addr")
 
-	// If the OpenTelemetry Collector is running on a local cluster (minikube or
-	// microk8s), it should be accessible through the NodePort service at the
-	// `localhost:30080` endpoint. Otherwise, replace `localhost` with the
-	// endpoint of your cluster. If you run the app inside k8s, then you can
-	// probably connect directly to the service through dns
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-	con, err := grpc.DialContext(ctx, addr, grpc.WithTransportCredentials(grpcCreds), grpc.FailOnNonTempDialError(true), grpc.WithBlock())
-	if err != nil {
-		return nil, fmt.Errorf("failed to create gRPC connection to collector: %w", err)
-	}
-	exporter, err := otlpmetricgrpc.New(ctx, otlpmetricgrpc.WithGRPCConn(con))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create the collector metric client: %w", err)
+		// If the OpenTelemetry Collector is running on a local cluster (minikube or
+		// microk8s), it should be accessible through the NodePort service at the
+		// `localhost:30080` endpoint. Otherwise, replace `localhost` with the
+		// endpoint of your cluster. If you run the app inside k8s, then you can
+		// probably connect directly to the service through dns
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
+		con, err := grpc.DialContext(ctx, addr, grpc.WithTransportCredentials(*credentials), grpc.FailOnNonTempDialError(true), grpc.WithBlock())
+		if err != nil {
+			return nil, fmt.Errorf("failed to create gRPC connection to collector: %w", err)
+		}
+		exporter, err = otlpmetricgrpc.New(ctx, otlpmetricgrpc.WithGRPCConn(con))
+		if err != nil {
+			return nil, fmt.Errorf("failed to create the collector metric client: %w", err)
+		}
+	} else {
+		f, err := os.CreateTemp("", "metrics")
+		logger.Warn().Str("path", f.Name()).Msg("otlp parameters not specified. writing metrics to a temporary file. this is NOT recommend in production")
+		if err != nil {
+			return nil, fmt.Errorf("failed to create temporary metrics export file: %w", err)
+		}
+
+		enc := json.NewEncoder(f)
+		enc.SetIndent("", "  ")
+
+		exporter, err = stdoutmetric.New(
+			stdoutmetric.WithEncoder(enc),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create stdout exporter: %w", err)
+		}
 	}
 
 	reader := metric.NewPeriodicReader(exporter, metric.WithInterval(time.Second))

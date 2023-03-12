@@ -19,8 +19,6 @@ type ServerConfig struct {
 	Address  string
 	CertPath string `toml:"cert_path"`
 	KeyPath  string `toml:"key_path"`
-
-	watcher *filesystem.CertificateWatcher
 }
 
 func (c *ServerConfig) RegisterFlags(f *flag.FlagSet, prefix string) {
@@ -45,8 +43,8 @@ func (c *ServerConfig) UseCommonRoutes(mux *http.ServeMux, public bool) {
 	}
 }
 
-func (c *ServerConfig) NewServer(handler http.Handler, logger zerolog.Logger) (*http.Server, error) {
-	server := &http.Server{
+func (c *ServerConfig) NewServer(handler http.Handler, logger zerolog.Logger) (*Server, error) {
+	server := http.Server{
 		Addr:              c.Address,
 		Handler:           handler,
 		ReadTimeout:       5 * time.Second,
@@ -54,6 +52,7 @@ func (c *ServerConfig) NewServer(handler http.Handler, logger zerolog.Logger) (*
 		IdleTimeout:       30 * time.Second,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
+	var watcher *filesystem.CertificateWatcher
 	if c.CertPath != "" || c.KeyPath != "" {
 		w, err := filesystem.NewCertificateWatcher(c.CertPath, c.KeyPath, logger, time.Second*5)
 		if err != nil {
@@ -64,7 +63,7 @@ func (c *ServerConfig) NewServer(handler http.Handler, logger zerolog.Logger) (*
 		if err != nil {
 			return nil, err
 		}
-		c.watcher = w
+		watcher = w
 		server.TLSConfig = &tls.Config{
 			GetCertificate: w.GetCertificateFunc(),
 		}
@@ -72,10 +71,36 @@ func (c *ServerConfig) NewServer(handler http.Handler, logger zerolog.Logger) (*
 		logger.Warn().Msg("tls certificate path and key path are not specified. using http instead of https")
 	}
 
-	return server, nil
+	return &Server{
+		server,
+		logger,
+		watcher,
+	}, nil
 }
 
-func (c *ServerConfig) Shutdown(ctx context.Context, logger zerolog.Logger) error {
+type Server struct {
+	http.Server
+
+	logger  zerolog.Logger
+	watcher *filesystem.CertificateWatcher
+}
+
+func (c *Server) Listen() error {
+	if c.TLSConfig != nil {
+		if err := c.ListenAndServeTLS("", ""); err != nil {
+			return fmt.Errorf("error while serving server: %w", err)
+		}
+	} else {
+		c.logger.Warn().Msg("running http server without https. this is not in production")
+		if err := c.ListenAndServe(); err != nil {
+			return fmt.Errorf("error while serving server: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (c *Server) Cleanup() error {
 	if c.watcher != nil {
 		return c.watcher.Stop()
 	}

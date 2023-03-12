@@ -6,6 +6,8 @@ WORKDIR /acme-example
 deps:
   COPY go.mod go.sum ./
   COPY --dir ../../../baseplate-go+artifact-config/config ../../
+  COPY --dir ../../../baseplate-go+artifact-http/http ../../
+
   RUN go mod download
   # Output these back in case go mod download changes them.
   SAVE ARTIFACT go.mod AS LOCAL go.mod
