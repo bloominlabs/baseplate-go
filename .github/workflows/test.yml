@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
 name: test
 
 on:
@@ -10,11 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go: ["1.19"]
+        examples: ["acme-example", "http-server", "srv-client"]
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
-        with:
-          go-version: ${{ matrix.go }}
-          cache: true
-      - run: go test ./...
+      - uses: earthly/actions-setup@v1.0.2
+      - run: earthly --ci +build 
+        working-directory: "./example/${{ matrix.examples }}"

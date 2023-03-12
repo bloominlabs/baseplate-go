@@ -1,21 +1,14 @@
+# yaml-language-server: $schema=https://json.schemastore.org/dependabot-2.0.json
 # TODO: automate generation of this file
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
-    labels:
-      - dependencies
-      - actions
-      - Skip Changelog
     schedule:
       interval: weekly
-      day: sunday
+      day: tuesday
   - package-ecosystem: gomod
     directory: /
-    labels:
-      - dependencies
-      - go
-      - Skip Changelog
     schedule:
       interval: weekly
-      day: sunday
+      day: tuesday
