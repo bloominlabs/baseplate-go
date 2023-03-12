@@ -1,14 +1,88 @@
 # yaml-language-server: $schema=https://json.schemastore.org/dependabot-2.0.json
-# TODO: automate generation of this file
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
-      day: tuesday
+      day: tuesday 
   - package-ecosystem: gomod
     directory: /
+    schedule:
+      interval: weekly
+      day: tuesday
+  - package-ecosystem: gomod
+    directory: ./config
+    schedule:
+      interval: weekly
+      day: tuesday
+  - package-ecosystem: gomod
+    directory: ./config/auth0
+    schedule:
+      interval: weekly
+      day: tuesday
+  - package-ecosystem: gomod
+    directory: ./config/cloudflare
+    schedule:
+      interval: weekly
+      day: tuesday
+  - package-ecosystem: gomod
+    directory: ./config/consul
+    schedule:
+      interval: weekly
+      day: tuesday
+  - package-ecosystem: gomod
+    directory: ./config/env
+    schedule:
+      interval: weekly
+      day: tuesday
+  - package-ecosystem: gomod
+    directory: ./config/filesystem
+    schedule:
+      interval: weekly
+      day: tuesday
+  - package-ecosystem: gomod
+    directory: ./config/nomad
+    schedule:
+      interval: weekly
+      day: tuesday
+  - package-ecosystem: gomod
+    directory: ./config/observability
+    schedule:
+      interval: weekly
+      day: tuesday
+  - package-ecosystem: gomod
+    directory: ./config/server
+    schedule:
+      interval: weekly
+      day: tuesday
+  - package-ecosystem: gomod
+    directory: ./config/spaces
+    schedule:
+      interval: weekly
+      day: tuesday
+  - package-ecosystem: gomod
+    directory: ./config/tailscale
+    schedule:
+      interval: weekly
+      day: tuesday
+  - package-ecosystem: gomod
+    directory: ./example/acme-example
+    schedule:
+      interval: weekly
+      day: tuesday
+  - package-ecosystem: gomod
+    directory: ./example/http-server
+    schedule:
+      interval: weekly
+      day: tuesday
+  - package-ecosystem: gomod
+    directory: ./example/srv-client
+    schedule:
+      interval: weekly
+      day: tuesday
+  - package-ecosystem: gomod
+    directory: ./http
     schedule:
       interval: weekly
       day: tuesday

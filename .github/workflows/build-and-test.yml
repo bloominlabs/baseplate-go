@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
-name: test
+name: build-and-test
 
 on:
   push:
@@ -17,3 +17,13 @@ jobs:
       - uses: earthly/actions-setup@v1.0.2
       - run: earthly --ci +build 
         working-directory: "./example/${{ matrix.examples }}"
+
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: earthly/actions-setup@v1.0.2
+      - name: Gen dependabot
+        run: |
+          ./scripts/dependabot.sh
+          git diff -s --exit-code || (echo 'ALL_MODULES have been changed, please run "./scripts/dependabot.sh" and commit the changes in this PR.' && exit 1)
