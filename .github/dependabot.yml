@@ -93,3 +93,8 @@ updates:
     schedule:
       interval: weekly
       day: tuesday
+  - package-ecosystem: gomod
+    directory: ./tlsutil
+    schedule:
+      interval: weekly
+      day: tuesday
