@@ -53,9 +53,6 @@ func main() {
 	}
 
 	log.Info().Msg("starting")
-	cfg.Telemetry.InitializeTelemetry(context.Background(), SLUG, log.Logger)
-	defer cfg.Telemetry.Shutdown(context.Background(), log.Logger)
-
 	if err := cfg.Telemetry.InitializeTelemetry(context.Background(), SLUG, log.Logger); err != nil {
 		log.Fatal().Err(err).Msg("failed to initialize telemetry")
 	}
