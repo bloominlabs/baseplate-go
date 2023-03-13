@@ -5,7 +5,7 @@ go 1.20
 replace github.com/bloominlabs/baseplate-go/config/filesystem => ./filesystem/
 
 require (
-	github.com/bloominlabs/baseplate-go/config/filesystem v0.0.0-20230313062030-93e37f6e4bfe
+	github.com/bloominlabs/baseplate-go/config/filesystem v0.0.0-20230313062718-f967fe864fd1
 	github.com/grafana/dskit v0.0.0-20230307154039-ee798e84baf0
 	github.com/pelletier/go-toml/v2 v2.0.7
 	github.com/rs/zerolog v1.29.0
