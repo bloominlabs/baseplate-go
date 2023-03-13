@@ -88,3 +88,8 @@ updates:
     schedule:
       interval: weekly
       day: tuesday
+  - package-ecosystem: gomod
+    directory: ./semconv
+    schedule:
+      interval: weekly
+      day: tuesday
