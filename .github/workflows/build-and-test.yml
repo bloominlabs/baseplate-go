@@ -14,7 +14,7 @@ jobs:
         examples: ["acme-example", "http-server", "srv-client"]
     steps:
       - uses: actions/checkout@v3
-      - uses: earthly/actions-setup@v1.0.2
+      - uses: earthly/actions-setup@v1.0.5
       - run: earthly --ci +build 
         working-directory: "./example/${{ matrix.examples }}"
 
@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: earthly/actions-setup@v1.0.2
+      - uses: earthly/actions-setup@v1.0.5
       - name: Gen dependabot
         run: |
           ./scripts/dependabot.sh
