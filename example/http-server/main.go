@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	_ "net/http/pprof"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -17,34 +16,27 @@ import (
 	"github.com/rs/zerolog/log"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/baggage"
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/metric/instrument"
 	"go.opentelemetry.io/otel/trace"
 
 	bConfig "github.com/bloominlabs/baseplate-go/config"
+	"github.com/bloominlabs/baseplate-go/config/observability"
+	"github.com/bloominlabs/baseplate-go/config/server"
 	bHttp "github.com/bloominlabs/baseplate-go/http"
 )
 
-var otlpAddr string
-var otlpCAPath string
-var otlpCertPath string
-var otlpKeyPath string
-var bindPort string
-
-var withObservability bool
+const SLUG = "loadchecker"
 
 type Config struct {
-	Telemetry bConfig.TelemetryConfig `toml:"telemetry"`
-
-	Port              string `toml:"port"`
-	WithObservability bool   `toml:"with_observability"`
+	Telemetry observability.TelemetryConfig `toml:"telemetry"`
+	Server    server.ServerConfig           `toml:"server"`
 }
 
 func (c *Config) RegisterFlags(f *flag.FlagSet) {
-	f.StringVar(&c.Port, "bind.port", "8080", "port for the main http server to listen on")
-	f.BoolVar(&c.WithObservability, "with-observability", false, "Emit OTLP without needing a mTLS certificate")
-
 	c.Telemetry.RegisterFlags(f)
+	c.Server.RegisterFlags(f, "server")
 }
 
 func main() {
@@ -52,33 +44,30 @@ func main() {
 		cfg Config
 	)
 
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	log.Logger = log.With().Caller().Logger()
+
 	_, err := bConfig.ParseConfiguration(&cfg, log.Logger)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to parse configuration")
 	}
 
-	cfg.Telemetry.InitializeTelemetry(context.Background(), "serverd", log.Logger)
+	log.Info().Msg("starting")
+	cfg.Telemetry.InitializeTelemetry(context.Background(), SLUG, log.Logger)
 	defer cfg.Telemetry.Shutdown(context.Background(), log.Logger)
 
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	log.Logger = log.With().Caller().Logger()
-
-	log.Info().Msg("starting loadchecker")
-
-	if cfg.Telemetry.OTLPCAPath != "" || cfg.Telemetry.OTLPCertPath != "" || cfg.Telemetry.OTLPKeyPath != "" || cfg.WithObservability {
-		if err := cfg.Telemetry.InitializeTelemetry(context.Background(), "loadchecker", log.Logger); err != nil {
-			log.Fatal().Err(err).Msg("failed to initialize telemetry")
-		}
-		defer cfg.Telemetry.Shutdown(context.Background(), log.Logger)
+	if err := cfg.Telemetry.InitializeTelemetry(context.Background(), SLUG, log.Logger); err != nil {
+		log.Fatal().Err(err).Msg("failed to initialize telemetry")
 	}
+	defer cfg.Telemetry.Shutdown(context.Background(), log.Logger)
 
 	mp := global.MeterProvider()
-	meter := mp.Meter("loadchecker")
+	meter := mp.Meter(SLUG)
 	observerLock := new(sync.RWMutex)
 	underLoad := new(int64)
 	labels := new([]attribute.KeyValue)
 
-	gaugeObserver, err := meter.AsyncInt64().Gauge(
+	gaugeObserver, err := meter.Int64ObservableGauge(
 		"under_load",
 		instrument.WithDescription(
 			"1 if the instance is 'under load'; otherwise, 0. Used to trick the autoscaler",
@@ -88,16 +77,18 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to initialize instrument")
 	}
-	_ = meter.RegisterCallback([]instrument.Asynchronous{gaugeObserver}, func(ctx context.Context) {
+	_, _ = meter.RegisterCallback(func(ctx context.Context, o metric.Observer) error {
 		(*observerLock).RLock()
 		value := *underLoad
 		labels := *labels
 		(*observerLock).RUnlock()
-		gaugeObserver.Observe(ctx, value, labels...)
+		o.ObserveInt64(gaugeObserver, value, labels...)
+
+		return nil
 	})
 
 	helloHandler := func(w http.ResponseWriter, req *http.Request) {
-		log := hlog.FromRequest(req)
+		logger := hlog.FromRequest(req)
 		ctx := req.Context()
 		_ = trace.SpanFromContext(ctx)
 		_ = baggage.FromContext(ctx)
@@ -107,7 +98,7 @@ func main() {
 		if strings.Contains(req.URL.Path, "switch") {
 			val, ok := req.URL.Query()["val"]
 			if !ok || len(val[0]) < 1 {
-				log.Error().Str("val", val[0]).Msg("missing parameter")
+				logger.Error().Str("val", val[0]).Msg("missing parameter")
 				return
 			}
 
@@ -124,17 +115,22 @@ func main() {
 	}
 
 	chain := alice.New(
-		bHttp.OTLPHandler("loadchecker"),
-		bHttp.TraceIDHandler("traceID"),
+		bHttp.OTLPHandler(SLUG),
 		bHttp.HlogHandler,
 		bHttp.RatelimiterMiddleware,
 	)
-
-	addr := ":" + cfg.Port
-	log.Info().Str("addr", addr).Msg("starting http server")
-	http.Handle("/", chain.Then(http.HandlerFunc(helloHandler)))
-	err = http.ListenAndServe(addr, nil)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", http.HandlerFunc(helloHandler))
+	cfg.Server.UseCommonRoutes(mux, false)
+	server, err := cfg.Server.NewServer(chain.Then(mux), log.Logger)
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to bind http server")
+		log.Fatal().Err(err).Msg("failed to create server")
+	}
+	log.Logger.Info().Str("Addr", server.Addr).Msg("listening")
+
+	err = server.Listen()
+	defer server.Cleanup()
+	if err != nil {
+		log.Fatal().Err(err).Msg("error while listening to http server")
 	}
 }

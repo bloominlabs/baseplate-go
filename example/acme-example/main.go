@@ -1,64 +1,71 @@
-// TODO https://github.com/cert-manager/cert-manager/issues/2131
 package main
 
 import (
 	"context"
-	"crypto/tls"
 	"flag"
 	"net/http"
-	"os"
-	"time"
+
+	"github.com/justinas/alice"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/hlog"
+	"github.com/rs/zerolog/log"
 
 	"github.com/bloominlabs/baseplate-go/config"
-	"github.com/rs/zerolog/log"
+	"github.com/bloominlabs/baseplate-go/config/observability"
+	"github.com/bloominlabs/baseplate-go/config/server"
+	bHttp "github.com/bloominlabs/baseplate-go/http"
 )
 
-var tlsCertPath string
-var tlsKeyPath string
+const SLUG = "acme-example"
 
-func getenv(key, def string) string {
-	if val, ok := os.LookupEnv(key); ok == true {
-		return val
-	}
-
-	return def
+type Config struct {
+	Telemetry observability.TelemetryConfig
+	Server    server.ServerConfig
 }
 
-// TODO: make better desription
-func init() {
-	flag.StringVar(&tlsCertPath, "tls.cert.path", getenv("TLS_CERT_PATH", "cert.pem"), "TLS certificate to use for HTTPS server")
-	flag.StringVar(&tlsKeyPath, "tls.key.path", getenv("TLS_KEY_PATH", "key.pem"), "TLS private key to use for HTTP server")
+func (c *Config) RegisterFlags(f *flag.FlagSet) {
+	c.Telemetry.RegisterFlags(f)
+	c.Server.RegisterFlags(f, "server")
 }
 
 func main() {
-	flag.Parse()
-	log.Debug().Str("tlsCertPath", tlsCertPath).Str("tlsKeyPath", tlsKeyPath).Msg("starting acme-example")
-	addr := ":" + os.Getenv("NOMAD_PORT_http")
+	var (
+		cfg Config
+	)
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	log.Info().Msg("starting")
+
+	_, err := config.ParseConfiguration(&cfg, log.Logger)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to parse configuration")
+	}
+
+	if err := cfg.Telemetry.InitializeTelemetry(context.Background(), SLUG, log.Logger); err != nil {
+		log.Fatal().Err(err).Msg("failed to initialize telemetry")
+	}
+	defer cfg.Telemetry.Shutdown(context.Background(), log.Logger)
+
+	chain := alice.New(
+		bHttp.OTLPHandler(SLUG),
+		bHttp.HlogHandler,
+		bHttp.RatelimiterMiddleware,
+	)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		hlog.FromRequest(r).Info().Msg("received request!")
 		w.Write([]byte("Hello world"))
 	})
-
-	w, err := config.NewCertificateWatcher(tlsCertPath, tlsKeyPath, log.Logger, time.Second*5)
+	cfg.Server.UseCommonRoutes(mux, false)
+	server, err := cfg.Server.NewServer(chain.Then(mux), log.Logger)
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to create certificate watcher")
+		log.Fatal().Err(err).Msg("failed to create server")
 	}
-	stop, err := w.Start(context.Background())
+	log.Logger.Info().Str("Addr", server.Addr).Msg("listening")
+
+	err = server.Listen()
+	defer server.Cleanup()
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to start certificate watcher")
-	}
-	defer stop()
-
-	server := &http.Server{
-		Addr: addr,
-		TLSConfig: &tls.Config{
-			GetCertificate: w.GetCertificateFunc(),
-		},
-	}
-
-	log.Debug().Str("tlsCertPath", tlsCertPath).Str("tlsKeyPath", tlsKeyPath).Str("addr", addr).Msg("starting https server")
-	//Key and cert are coming from keypair reloader
-	if err := server.ListenAndServeTLS("", ""); err != nil {
-		log.Fatal().Err(err).Msg("failed to listen and server TLS")
+		log.Fatal().Err(err).Msg("error while listening to http server")
 	}
 }
