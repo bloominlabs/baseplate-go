@@ -24,7 +24,8 @@ const (
 	// Note: This value is intended to be taken from the environment.
 	ServerSlugKey = attribute.Key("server.slug")
 
-	// The semver-compatible version the gameserver is currently running
+	// The version of the gameserver that is currently running. This reported by
+	// the game and not an internal version of the game.
 	//
 	// Type: string
 	// RequirementLevel: Optional
@@ -38,5 +39,19 @@ const (
 // "server.id" semantic conventions. It represents the the unique ID of a
 // user's server.
 func ServerID(val string) attribute.KeyValue {
+	return ServerIDKey.String(val)
+}
+
+// ServerSlug returns an attribute KeyValue conforming to the
+// "server.slug" semantic conventions. It represents the the unique ID of a
+// game.
+func ServerSlug(val string) attribute.KeyValue {
+	return ServerIDKey.String(val)
+}
+
+// ServerVersion returns an attribute KeyValue conforming to the
+// "server.version" semantic conventions. It represents the the versino
+// user's server.
+func ServerVersion(val string) attribute.KeyValue {
 	return ServerIDKey.String(val)
 }
