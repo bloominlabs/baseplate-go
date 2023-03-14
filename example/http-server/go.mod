@@ -18,8 +18,8 @@ require (
 	github.com/alecthomas/units v0.0.0-20211218093645-b94a6e3cc137 // indirect
 	github.com/auth0/go-jwt-middleware/v2 v2.1.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/bloominlabs/baseplate-go/config/env v0.0.0-00010101000000-000000000000 // indirect
-	github.com/bloominlabs/baseplate-go/config/filesystem v0.0.0-00010101000000-000000000000 // indirect
+	github.com/bloominlabs/baseplate-go/config/env v0.0.0-20230313062030-93e37f6e4bfe // indirect
+	github.com/bloominlabs/baseplate-go/config/filesystem v0.0.0-20230313062718-f967fe864fd1 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/felixge/httpsnoop v1.0.3 // indirect
@@ -59,7 +59,7 @@ require (
 	golang.org/x/text v0.8.0 // indirect
 	google.golang.org/genproto v0.0.0-20230306155012-7f2fa6fef1f4 // indirect
 	google.golang.org/grpc v1.53.0 // indirect
-	google.golang.org/protobuf v1.29.0 // indirect
+	google.golang.org/protobuf v1.29.1 // indirect
 	gopkg.in/square/go-jose.v2 v2.6.0 // indirect
 )
 
