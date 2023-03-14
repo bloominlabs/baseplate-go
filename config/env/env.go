@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 )
 
 func GetEnvStr(key string) (string, error) {
@@ -69,4 +70,17 @@ func MustGetEnvBool(key string) bool {
 		panic(err)
 	}
 	return v
+}
+
+func GetEnvDurDefault(key string, def time.Duration) time.Duration {
+	if val, ok := os.LookupEnv(key); ok {
+		dur, err := time.ParseDuration(val)
+		if err != nil {
+			panic(err)
+		}
+
+		return dur
+	}
+
+	return def
 }
