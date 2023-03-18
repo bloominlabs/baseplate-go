@@ -2,6 +2,7 @@ package auth0
 
 import (
 	"flag"
+	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -17,10 +18,10 @@ const DefaultAuth0Domain = "https://hostin-proj.us.auth0.com"
 type Auth0Config struct {
 	sync.RWMutex
 
-	Domain       string
-	Token        string
-	ClientID     string
-	ClientSecret string
+	Domain       string `toml:"domain"`
+	Token        string `toml:"token"`
+	ClientID     string `toml:"client_id"`
+	ClientSecret string `toml:"client_secret"`
 	client       *management.Management
 }
 
@@ -31,11 +32,27 @@ func (c *Auth0Config) RegisterFlags(f *flag.FlagSet) {
 	f.StringVar(&c.ClientSecret, "auth0.client_secret", env.GetEnvStrDefault("AUTH0_CLIENT_SECRET", ""), "Auth0 Management Client Secret with capability to create users (can be used ins tead of auth0.client_token")
 }
 
+func (c *Auth0Config) Validate() error {
+	if c.ClientID == "" && c.ClientSecret != "" {
+		return fmt.Errorf("'client_secret' is specified, but 'client_id' is empty. Please set 'client_id' or use the auth0 token instead")
+	}
+	if c.ClientID != "" && c.ClientSecret == "" {
+		return fmt.Errorf("'client_id' is specified, but 'client_secret' is empty. Please set 'client_secret' or use the auth0 token instead")
+	}
+	if c.Token == "" && c.ClientID == "" && c.ClientSecret == "" {
+		return fmt.Errorf("'token', 'client_id', nor 'client_secret' is specified. cannot authenticate to auth0 at %s", c.Domain)
+	}
+
+	return nil
+}
+
 func (c *Auth0Config) Merge(other *Auth0Config) error {
+	c.Lock()
 	c.Domain = other.Domain
 	c.Token = other.Token
 	c.ClientID = other.ClientID
 	c.ClientSecret = other.ClientSecret
+	c.Unlock()
 
 	client, err := c.CreateClient()
 	if err != nil {
@@ -53,6 +70,8 @@ func (c *Auth0Config) CreateClient() (*management.Management, error) {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	client := &http.Client{Transport: otelhttp.NewTransport(transport), Timeout: time.Minute}
 
+	c.RLock()
+	defer c.RUnlock()
 	if c.Token == "" {
 		return management.New(c.Domain, management.WithClientCredentials(c.ClientID, c.ClientSecret), management.WithClient(client))
 	} else {
@@ -62,7 +81,9 @@ func (c *Auth0Config) CreateClient() (*management.Management, error) {
 
 // Initialize Metrics + Tracing for the app. NOTE: you must call defer t.Stop() to propely cleanup
 func (c *Auth0Config) GetClient() (management.Management, error) {
+	c.RLock()
 	if c.client == nil {
+		c.RUnlock()
 		client, err := c.CreateClient()
 		if err != nil {
 			return *client, err
@@ -74,7 +95,6 @@ func (c *Auth0Config) GetClient() (management.Management, error) {
 		return *client, err
 	}
 
-	c.RLock()
 	defer c.RUnlock()
 	return *c.client, nil
 }
