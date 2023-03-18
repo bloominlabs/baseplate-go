@@ -20,6 +20,8 @@ const CONFIG_FILE_FLAG = "config.file"
 
 type Configuration interface {
 	RegisterFlags(*flag.FlagSet)
+	Merge(*Configuration) *Configuration
+	Validate() error
 }
 
 // Parse -config.file option via separate flag set, to avoid polluting default one and calling flag.Parse on it twice.

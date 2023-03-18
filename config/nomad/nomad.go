@@ -12,8 +12,8 @@ import (
 type NomadConfig struct {
 	sync.RWMutex
 
-	Address string
-	Token   string
+	Address string `toml:"address"`
+	Token   string `toml:"token"`
 	client  *api.Client
 }
 
@@ -23,14 +23,18 @@ func (c *NomadConfig) RegisterFlags(f *flag.FlagSet) {
 }
 
 func (c *NomadConfig) Merge(other *NomadConfig) error {
+	c.Lock()
 	c.Address = other.Address
 	c.Token = other.Token
+	c.Unlock()
 
 	client, err := c.CreateClient()
 	if err != nil {
 		return err
 	} else {
+		c.Lock()
 		c.client = client
+		c.Unlock()
 	}
 
 	return nil
@@ -38,15 +42,18 @@ func (c *NomadConfig) Merge(other *NomadConfig) error {
 
 func (c *NomadConfig) CreateClient() (*api.Client, error) {
 	config := api.DefaultConfig()
+	c.RLock()
 	config.Address = c.Address
 	config.SecretID = c.Token
+	c.RUnlock()
 
 	return api.NewClient(config)
 }
 
-// Initialize Metrics + Tracing for the app. NOTE: you must call defer t.Stop() to propely cleanup
 func (c *NomadConfig) GetClient() (api.Client, error) {
+	c.RLock()
 	if c.client == nil {
+		c.RUnlock()
 		client, err := c.CreateClient()
 		if err != nil {
 			return *client, err
@@ -58,7 +65,6 @@ func (c *NomadConfig) GetClient() (api.Client, error) {
 		return *client, err
 	}
 
-	c.RLock()
 	defer c.RUnlock()
 	return *c.client, nil
 }
