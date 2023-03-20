@@ -18,6 +18,20 @@ import (
 	"github.com/bloominlabs/baseplate-go/config/env"
 )
 
+var isPrefixCompatible *regexp.Regexp = regexp.MustCompile(`^[A-Za-z0-9.]+$`)
+
+// create a (flag comptable, environment variable compatible), respectively,
+// prefix. Useful for derived configurations that want to register their own
+// flags for custom buckets. DO NOT use when running the 'RegisterFlags'
+// function as it will be done on your behalf for the default flags.
+func CreatePrefix(prefix string) (string, string) {
+	if !isPrefixCompatible.MatchString(prefix) {
+		panic(fmt.Sprintf("spaces prefix '%s' must only have alphanumeric characters or periods", prefix))
+	}
+
+	return strings.ToLower(prefix), strings.ReplaceAll(strings.ToUpper(prefix), ".", "_")
+}
+
 type DigitalOceanSpacesConfig struct {
 	sync.RWMutex
 
@@ -52,18 +66,14 @@ type DigitalOceanSpacesConfig struct {
 	client *s3.Client
 }
 
-var isPrefixCompatible *regexp.Regexp = regexp.MustCompile(`^[A-Za-z0-9.]+$`)
-
-// create a (flag comptable, environment variable compatible), respectively,
-// prefix. Useful for derived configurations that want to register their own
-// flags for custom buckets. DO NOT use when running the 'RegisterFlags'
-// function as it will be done on your behalf for the default flags.
-func CreatePrefix(prefix string) (string, string) {
-	if !isPrefixCompatible.MatchString(prefix) {
-		panic(fmt.Sprintf("spaces prefix '%s' must only have alphanumeric characters or periods", prefix))
-	}
-
-	return strings.ToLower(prefix), strings.ReplaceAll(strings.ToUpper(prefix), ".", "_")
+// set the s3 client manually. useful when writing tests with an already
+// initialized client.
+//
+// WARNING: if you use this parameter, be careful to not use CreateClient() as
+// it will overwrite the manually set client. I don't currently have a good
+// solution to get around this.
+func (c *DigitalOceanSpacesConfig) WithClient(client *s3.Client) {
+	c.client = client
 }
 
 // Register DigitalOceanSpacesConfig flags with the provided flag.FlagSet. The
