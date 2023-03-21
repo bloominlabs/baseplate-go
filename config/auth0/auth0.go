@@ -1,6 +1,7 @@
 package auth0
 
 import (
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/auth0/go-auth0/management"
+	"github.com/hashicorp/go-cleanhttp"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/bloominlabs/baseplate-go/config/env"
@@ -68,10 +70,21 @@ func (c *Auth0Config) Merge(other *Auth0Config) error {
 	return nil
 }
 
-func (c *Auth0Config) CreateClient() (*management.Management, error) {
-	transport := http.DefaultTransport.(*http.Transport).Clone()
-	client := &http.Client{Transport: otelhttp.NewTransport(transport), Timeout: time.Minute}
+func defaultHttpClient() *http.Client {
+	httpClient := cleanhttp.DefaultPooledClient()
+	transport := httpClient.Transport.(*http.Transport)
+	transport.TLSHandshakeTimeout = 10 * time.Second
+	transport.TLSClientConfig = &tls.Config{
+		MinVersion: tls.VersionTLS12,
+	}
 
+	httpClient.Transport = otelhttp.NewTransport(httpClient.Transport)
+
+	return httpClient
+}
+
+func (c *Auth0Config) CreateClient() (*management.Management, error) {
+	client := defaultHttpClient()
 	c.RLock()
 	defer c.RUnlock()
 	if c.Token == "" {
