@@ -25,7 +25,10 @@ func (c *TailscaleConfig) RegisterFlags(f *flag.FlagSet) {
 }
 
 func (c *TailscaleConfig) Merge(other *TailscaleConfig) error {
-	c.Tailnet = other.Tailnet
+	if other.Tailnet != "" {
+		c.Tailnet = other.Tailnet
+	}
+
 	c.ApiToken = other.ApiToken
 
 	client, err := c.CreateClient()

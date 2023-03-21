@@ -48,7 +48,9 @@ func (c *Auth0Config) Validate() error {
 
 func (c *Auth0Config) Merge(other *Auth0Config) error {
 	c.Lock()
-	c.Domain = other.Domain
+	if other.Domain != "" {
+		c.Domain = other.Domain
+	}
 	c.Token = other.Token
 	c.ClientID = other.ClientID
 	c.ClientSecret = other.ClientSecret

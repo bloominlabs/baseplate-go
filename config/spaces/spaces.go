@@ -117,8 +117,15 @@ func (c *DigitalOceanSpacesConfig) RegisterFlags(f *flag.FlagSet, prefix string)
 
 func (c *DigitalOceanSpacesConfig) Merge(other *DigitalOceanSpacesConfig) error {
 	c.Lock()
-	c.Region = other.Region
-	c.Endpoint = other.Endpoint
+	// when the configuration is related, it won't have the defaults from
+	// RegisterFlags. This can cause c.Region and c.Endpoint to become empty
+	// strings since we rely on the default behavior for those two fields.
+	if other.Region != "" {
+		c.Region = other.Region
+	}
+	if other.Endpoint != "" {
+		c.Endpoint = other.Endpoint
+	}
 	c.AccessKeyID = other.AccessKeyID
 	c.SecretAccessKey = other.SecretAccessKey
 	c.Unlock()
