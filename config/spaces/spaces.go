@@ -127,7 +127,9 @@ func (c *DigitalOceanSpacesConfig) Merge(other *DigitalOceanSpacesConfig) error 
 	if err != nil {
 		return err
 	} else {
+		c.Lock()
 		c.client = client
+		c.Unlock()
 	}
 
 	return nil
@@ -153,6 +155,7 @@ func (c *DigitalOceanSpacesConfig) Validate() error {
 }
 
 func (c *DigitalOceanSpacesConfig) CreateClient() (*s3.Client, error) {
+	c.RLock()
 	// setup s3 sdk for use with digitalocean + opentelemetry
 	resolver := aws.EndpointResolverWithOptionsFunc(func(service, awsRegion string, options ...interface{}) (aws.Endpoint, error) {
 		return aws.Endpoint{
@@ -165,7 +168,7 @@ func (c *DigitalOceanSpacesConfig) CreateClient() (*s3.Client, error) {
 		awsconfig.WithDefaultRegion(c.Region),
 		awsconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(c.AccessKeyID, c.SecretAccessKey, "")),
 	)
-
+	c.RUnlock()
 	if err != nil {
 		return nil, err
 	}
