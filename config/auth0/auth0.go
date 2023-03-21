@@ -78,7 +78,7 @@ func defaultHttpClient() *http.Client {
 		MinVersion: tls.VersionTLS12,
 	}
 
-	httpClient.Transport = otelhttp.NewTransport(httpClient.Transport)
+	httpClient.Transport = otelhttp.NewTransport(httpClient.Transport, otelhttp.WithServerName("auth0"))
 
 	return httpClient
 }
