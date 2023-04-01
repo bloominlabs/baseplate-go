@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/http"
 	"regexp"
 	"strings"
 	"sync"
@@ -12,6 +13,7 @@ import (
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/go-multierror"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/aws/aws-sdk-go-v2/otelaws"
 
@@ -39,6 +41,7 @@ type DigitalOceanSpacesConfig struct {
 	AccessKeyID     string `toml:"access_key_id"`
 	SecretAccessKey string `toml:"secret_access_key"`
 	Region          string `toml:"region"`
+	TLSSkipVerify   bool   `toml:"tls-skip-verify"`
 
 	prefix string
 
@@ -86,6 +89,12 @@ func (c *DigitalOceanSpacesConfig) RegisterFlags(f *flag.FlagSet, prefix string)
 		&c.Region,
 		fmt.Sprintf("%s.region", prefix),
 		env.GetEnvStrDefault(fmt.Sprintf("%s_REGION", upperPrefix), "sfo3"),
+		"region to associate the client to",
+	)
+	f.BoolVar(
+		&c.TLSSkipVerify,
+		fmt.Sprintf("%s.tls-skip-verify", prefix),
+		env.GetEnvBoolDefault(fmt.Sprintf("%s_TLS_SKIP_VERIFY", upperPrefix), false),
 		"region to associate the client to",
 	)
 	f.StringVar(
@@ -169,8 +178,12 @@ func (c *DigitalOceanSpacesConfig) CreateClient() (*s3.Client, error) {
 			URL: fmt.Sprintf("https://%s.%s", c.Region, c.Endpoint),
 		}, nil
 	})
+
+	client := cleanhttp.DefaultPooledClient()
+	client.Transport.(*http.Transport).TLSClientConfig.InsecureSkipVerify = c.TLSSkipVerify
 	s3config, err := awsconfig.LoadDefaultConfig(
 		context.Background(),
+		awsconfig.WithHTTPClient(client),
 		awsconfig.WithEndpointResolverWithOptions(resolver),
 		awsconfig.WithDefaultRegion(c.Region),
 		awsconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(c.AccessKeyID, c.SecretAccessKey, "")),
