@@ -42,6 +42,7 @@ type DigitalOceanSpacesConfig struct {
 	AccessKeyID     string `toml:"access_key_id"`
 	SecretAccessKey string `toml:"secret_access_key"`
 	Region          string `toml:"region"`
+	UsePathStyle    bool   `toml:"use-path-style"`
 	TLSSkipVerify   bool   `toml:"tls-skip-verify"`
 
 	prefix string
@@ -98,6 +99,12 @@ func (c *DigitalOceanSpacesConfig) RegisterFlags(f *flag.FlagSet, prefix string)
 		env.GetEnvBoolDefault(fmt.Sprintf("%s_TLS_SKIP_VERIFY", upperPrefix), false),
 		"region to associate the client to",
 	)
+	f.BoolVar(
+		&c.UsePathStyle,
+		fmt.Sprintf("%s.use-path-style", prefix),
+		env.GetEnvBoolDefault(fmt.Sprintf("%s_USE_PATH_STYLE", upperPrefix), false),
+		"use aws path style when making requests",
+	)
 	f.StringVar(
 		&c.Endpoint,
 		fmt.Sprintf("%s.endpoint", prefix),
@@ -106,13 +113,13 @@ func (c *DigitalOceanSpacesConfig) RegisterFlags(f *flag.FlagSet, prefix string)
 	)
 	f.StringVar(
 		&c.AccessKeyID,
-		fmt.Sprintf("%s.access_key_id", prefix),
+		fmt.Sprintf("%s.access-key-id", prefix),
 		env.GetEnvStrDefault(fmt.Sprintf("%s_ACCESS_KEY_ID", upperPrefix), env.GetEnvStrDefault("AWS_ACCESS_KEY_ID", env.GetEnvStrDefault("SPACES_ACCESS_KEY_ID", ""))),
 		"Spaces Access Key ID for authentication",
 	)
 	f.StringVar(
 		&c.SecretAccessKey,
-		fmt.Sprintf("%s.secret_access_key", prefix),
+		fmt.Sprintf("%s.secret-access-key", prefix),
 		env.GetEnvStrDefault(fmt.Sprintf("%s_SECRET_ACCESS_KEY", upperPrefix), env.GetEnvStrDefault("AWS_SECRET_ACCESS_KEY", env.GetEnvStrDefault("SPACES_SECRET_ACCESS_KEY", ""))),
 		"Spaces Secret Access Key for authentication",
 	)
@@ -196,7 +203,9 @@ func (c *DigitalOceanSpacesConfig) CreateClient() (*s3.Client, error) {
 
 	otelaws.AppendMiddlewares(&s3config.APIOptions)
 
-	return s3.NewFromConfig(s3config), nil
+	return s3.NewFromConfig(s3config, func(o *s3.Options) {
+		o.UsePathStyle = c.UsePathStyle
+	}), nil
 }
 
 // Initialize Metrics + Tracing for the app. NOTE: you must call defer t.Stop() to propely cleanup
