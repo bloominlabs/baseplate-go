@@ -2,6 +2,7 @@ package spaces
 
 import (
 	"context"
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"net/http"
@@ -180,7 +181,7 @@ func (c *DigitalOceanSpacesConfig) CreateClient() (*s3.Client, error) {
 	})
 
 	client := cleanhttp.DefaultPooledClient()
-	client.Transport.(*http.Transport).TLSClientConfig.InsecureSkipVerify = c.TLSSkipVerify
+	client.Transport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: c.TLSSkipVerify}
 	s3config, err := awsconfig.LoadDefaultConfig(
 		context.Background(),
 		awsconfig.WithHTTPClient(client),
