@@ -42,8 +42,8 @@ type DigitalOceanSpacesConfig struct {
 	AccessKeyID     string `toml:"access_key_id"`
 	SecretAccessKey string `toml:"secret_access_key"`
 	Region          string `toml:"region"`
-	UsePathStyle    bool   `toml:"use-path-style"`
-	TLSSkipVerify   bool   `toml:"tls-skip-verify"`
+	UsePathStyle    bool   `toml:"use_path_style"`
+	TLSSkipVerify   bool   `toml:"tls_skip_verify"`
 
 	prefix string
 
