@@ -100,10 +100,10 @@ func (c *Server) Listen() error {
 	return nil
 }
 
-func (c *Server) Cleanup() error {
+func (c *Server) Shutdown(ctx context.Context) error {
 	if c.watcher != nil {
 		return c.watcher.Stop()
 	}
 
-	return nil
+	return c.Server.Shutdown(ctx)
 }
