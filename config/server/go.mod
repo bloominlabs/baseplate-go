@@ -9,7 +9,7 @@ replace github.com/bloominlabs/baseplate-go/config/env => ../env/
 require (
 	github.com/bloominlabs/baseplate-go/config/env v0.0.0-20230313062030-93e37f6e4bfe
 	github.com/bloominlabs/baseplate-go/config/filesystem v0.0.0-20230313062030-93e37f6e4bfe
-	github.com/rs/zerolog v1.29.0
+	github.com/rs/zerolog v1.29.1
 )
 
 require (
