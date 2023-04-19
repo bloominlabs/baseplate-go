@@ -6,7 +6,7 @@ require (
 	github.com/auth0/go-jwt-middleware/v2 v2.1.0
 	github.com/hashicorp/go-cleanhttp v0.5.2
 	github.com/justinas/alice v1.2.0
-	github.com/rs/zerolog v1.29.0
+	github.com/rs/zerolog v1.29.1
 	github.com/sethvargo/go-limiter v0.7.2
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.40.0
 	go.opentelemetry.io/otel v1.14.0
