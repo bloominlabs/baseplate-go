@@ -20,7 +20,6 @@ const CONFIG_FILE_FLAG = "config.file"
 
 type Configuration interface {
 	RegisterFlags(*flag.FlagSet)
-	Merge(*Configuration) *Configuration
 	Validate() error
 }
 
