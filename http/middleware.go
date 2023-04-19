@@ -12,6 +12,7 @@ import (
 	jwtmiddleware "github.com/auth0/go-jwt-middleware/v2"
 	"github.com/auth0/go-jwt-middleware/v2/jwks"
 	"github.com/auth0/go-jwt-middleware/v2/validator"
+	"github.com/hashicorp/go-cleanhttp"
 	"github.com/justinas/alice"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/hlog"
@@ -141,6 +142,9 @@ func OTLPHandler(serviceName string) func(http.Handler) http.Handler {
 }
 
 func JWTMiddleware(issuerURL string, identifiers []string, opts ...validator.Option) func(http.Handler) http.Handler {
+	client := cleanhttp.DefaultPooledClient()
+	client.Transport = otelhttp.NewTransport(client.Transport)
+
 	finalOpts := []validator.Option{
 		validator.WithCustomClaims(
 			func() validator.CustomClaims {
@@ -155,7 +159,11 @@ func JWTMiddleware(issuerURL string, identifiers []string, opts ...validator.Opt
 		log.Fatal().Err(err).Msg("failed to parse the issuer url")
 	}
 
-	provider := jwks.NewCachingProvider(parsedIssuerURL, 5*time.Minute)
+	provider := jwks.NewCachingProvider(
+		parsedIssuerURL,
+		5*time.Minute,
+		jwks.WithCustomClient(client),
+	)
 
 	jwtValidator, err := validator.New(
 		provider.KeyFunc,

@@ -4,6 +4,7 @@ go 1.20
 
 require (
 	github.com/auth0/go-jwt-middleware/v2 v2.1.0
+	github.com/hashicorp/go-cleanhttp v0.5.2
 	github.com/justinas/alice v1.2.0
 	github.com/rs/zerolog v1.29.0
 	github.com/sethvargo/go-limiter v0.7.2
