@@ -8,7 +8,7 @@ require (
 	github.com/bloominlabs/baseplate-go/config/server v0.0.0-00010101000000-000000000000
 	github.com/bloominlabs/baseplate-go/http v0.0.0-00010101000000-000000000000
 	github.com/justinas/alice v1.2.0
-	github.com/rs/zerolog v1.29.0
+	github.com/rs/zerolog v1.29.1
 	go.opentelemetry.io/otel v1.14.0
 	go.opentelemetry.io/otel/metric v0.37.0
 	go.opentelemetry.io/otel/trace v1.14.0
@@ -31,6 +31,7 @@ require (
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/grafana/dskit v0.0.0-20230307154039-ee798e84baf0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.15.2 // indirect
+	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.17 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
