@@ -1,5 +1,5 @@
 VERSION 0.6
-FROM golang:1.20-alpine
+FROM golang:1.20
 WORKDIR /baseplate-go
 
 deps:

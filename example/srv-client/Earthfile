@@ -21,7 +21,7 @@ build:
   SAVE ARTIFACT bin/srv-client /srv-client AS LOCAL bin/srv-client
 
 docker:
-  FROM gcr.io/distroless/base-debian11:debug
-  COPY ./bin/srv-client /usr/bin/srv-client
+  FROM gcr.io/distroless/base-debian11:debug-nonroot
+  COPY +build/srv-client /usr/bin/srv-client
   ENTRYPOINT ["/usr/bin/srv-client"]
   SAVE IMAGE --push ghcr.io/bloominlabs/srv-client:latest
