@@ -3,7 +3,6 @@ package filesystem
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"os"
 	"strings"
 	"testing"
@@ -11,7 +10,6 @@ import (
 
 	"github.com/rs/zerolog"
 
-	"github.com/hashicorp/consul/sdk/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -118,8 +116,7 @@ func TestWatcherRemoveNotFound(t *testing.T) {
 }
 
 func TestWatcherAddNotExist(t *testing.T) {
-
-	file := testutil.TempFile(t, "temp_config")
+	file := TempFile(t, "temp_config")
 	filename := file.Name() + randomStr(16)
 	w, err := NewFileWatcher([]string{filename}, zerolog.Logger{})
 	require.Error(t, err, "no such file or directory")
@@ -127,8 +124,7 @@ func TestWatcherAddNotExist(t *testing.T) {
 }
 
 func TestEventWatcherWrite(t *testing.T) {
-
-	file := testutil.TempFile(t, "temp_config")
+	file := TempFile(t, "temp_config")
 	_, err := file.WriteString("test config")
 	require.NoError(t, err)
 	err = file.Sync()
@@ -163,7 +159,7 @@ func TestEventWatcherRead(t *testing.T) {
 }
 
 func TestEventWatcherChmod(t *testing.T) {
-	file := testutil.TempFile(t, "temp_config")
+	file := TempFile(t, "temp_config")
 	defer func() {
 		err := file.Close()
 		require.NoError(t, err)
@@ -252,7 +248,7 @@ func TestEventReconcileMove(t *testing.T) {
 }
 
 func TestEventWatcherDirCreateRemove(t *testing.T) {
-	filepath := testutil.TempDir(t, "temp_config1")
+	filepath := TempDir(t, "temp_config1")
 	w, err := NewFileWatcher([]string{filepath}, zerolog.Logger{})
 	require.NoError(t, err)
 	w.Start(context.Background())
@@ -274,7 +270,7 @@ func TestEventWatcherDirCreateRemove(t *testing.T) {
 }
 
 func TestEventWatcherDirMove(t *testing.T) {
-	filepath := testutil.TempDir(t, "temp_config1")
+	filepath := TempDir(t, "temp_config1")
 
 	name := filepath + "/" + randomStr(20)
 	file, err := os.Create(name)
@@ -297,7 +293,7 @@ func TestEventWatcherDirMove(t *testing.T) {
 }
 
 func TestEventWatcherDirMoveTrim(t *testing.T) {
-	filepath := testutil.TempDir(t, "temp_config1")
+	filepath := TempDir(t, "temp_config1")
 
 	name := filepath + "/" + randomStr(20)
 	file, err := os.Create(name)
@@ -321,7 +317,7 @@ func TestEventWatcherDirMoveTrim(t *testing.T) {
 
 // Consul do not support configuration in sub-directories
 func TestEventWatcherSubDirMove(t *testing.T) {
-	filepath := testutil.TempDir(t, "temp_config1")
+	filepath := TempDir(t, "temp_config1")
 	err := os.Mkdir(filepath+"/temp", 0777)
 	require.NoError(t, err)
 	name := filepath + "/temp/" + randomStr(20)
@@ -345,7 +341,7 @@ func TestEventWatcherSubDirMove(t *testing.T) {
 }
 
 func TestEventWatcherDirRead(t *testing.T) {
-	filepath := testutil.TempDir(t, "temp_config1")
+	filepath := TempDir(t, "temp_config1")
 
 	name := filepath + "/" + randomStr(20)
 	file, err := os.Create(name)
@@ -365,9 +361,8 @@ func TestEventWatcherDirRead(t *testing.T) {
 }
 
 func TestEventWatcherMoveSoftLink(t *testing.T) {
-
 	filepath := createTempConfigFile(t, "temp_config1")
-	tempDir := testutil.TempDir(t, "temp_dir")
+	tempDir := TempDir(t, "temp_dir")
 	name := tempDir + "/" + randomStr(20)
 	err := os.Symlink(filepath, name)
 	require.NoError(t, err)
@@ -391,7 +386,7 @@ func assertEvent(name string, watcherCh chan *FileWatcherEvent, timeout time.Dur
 }
 
 func createTempConfigFile(t *testing.T, filename string) string {
-	file := testutil.TempFile(t, filename)
+	file := TempFile(t, filename)
 
 	_, err1 := file.WriteString("test config")
 	err2 := file.Close()
@@ -400,16 +395,4 @@ func createTempConfigFile(t *testing.T, filename string) string {
 	require.NoError(t, err2)
 
 	return file.Name()
-}
-
-func randomStr(length int) string {
-	const charset = "abcdefghijklmnopqrstuvwxyz" +
-		"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	var seededRand *rand.Rand = rand.New(
-		rand.NewSource(time.Now().UnixNano()))
-	b := make([]byte, length)
-	for i := range b {
-		b[i] = charset[seededRand.Intn(len(charset))]
-	}
-	return string(b)
 }

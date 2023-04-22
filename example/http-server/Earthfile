@@ -28,7 +28,7 @@ test:
   RUN go test
 
 docker:
-  FROM gcr.io/distroless/base-debian11:debug
+  FROM gcr.io/distroless/base-debian11:debug-nonroot
   COPY +build/loadchecker /usr/bin
   ENTRYPOINT ["/usr/bin/loadchecker"]
   SAVE IMAGE loadchecker:latest

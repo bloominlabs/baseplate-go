@@ -8,7 +8,6 @@ import (
 
 	"github.com/rs/zerolog"
 
-	"github.com/hashicorp/consul/sdk/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -19,7 +18,6 @@ func TestNewRateLimitedWatcher(t *testing.T) {
 }
 
 func TestRateLimitedWatcherRenameEvent(t *testing.T) {
-
 	fileTmp := createTempConfigFile(t, "temp_config3")
 	filepaths := []string{createTempConfigFile(t, "temp_config1"), createTempConfigFile(t, "temp_config2")}
 	w, err := NewRateLimitedFileWatcher(filepaths, zerolog.Logger{}, 1*time.Nanosecond)
@@ -40,8 +38,7 @@ func TestRateLimitedWatcherRenameEvent(t *testing.T) {
 }
 
 func TestRateLimitedWatcherAddNotExist(t *testing.T) {
-
-	file := testutil.TempFile(t, "temp_config")
+	file := TempFile(t, "temp_config")
 	filename := file.Name() + randomStr(16)
 	w, err := NewRateLimitedFileWatcher([]string{filename}, zerolog.Logger{}, 1*time.Nanosecond)
 	require.Error(t, err, "no such file or directory")
@@ -49,8 +46,7 @@ func TestRateLimitedWatcherAddNotExist(t *testing.T) {
 }
 
 func TestEventRateLimitedWatcherWrite(t *testing.T) {
-
-	file := testutil.TempFile(t, "temp_config")
+	file := TempFile(t, "temp_config")
 	_, err := file.WriteString("test config")
 	require.NoError(t, err)
 	err = file.Sync()
