@@ -12,7 +12,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
-	"github.com/hashicorp/consul/sdk/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -20,8 +19,8 @@ import (
 )
 
 func createTempCertificate(t *testing.T, filename string) (string, string) {
-	certFile := testutil.TempFile(t, filename)
-	pkFile := testutil.TempFile(t, filename)
+	certFile := TempFile(t, filename)
+	pkFile := TempFile(t, filename)
 
 	signer, _, err := tlsutil.GeneratePrivateKey()
 	require.NoError(t, err)
@@ -83,7 +82,7 @@ func TestCertificateWatcherRenameEvent(t *testing.T) {
 }
 
 func TestCertificateWatcherStartNotCertificate(t *testing.T) {
-	file := testutil.TempFile(t, "temp_config")
+	file := TempFile(t, "temp_config")
 	filename := file.Name() + randomStr(16)
 	_, err := NewCertificateWatcher(filename, filename, zerolog.Logger{}, 1*time.Nanosecond)
 	require.Error(t, err, "no such file or directory")

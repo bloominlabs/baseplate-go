@@ -9,7 +9,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/grafana/dskit/flagext"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/rs/zerolog"
 
@@ -64,7 +63,7 @@ func ParseConfiguration(cfg Configuration, logger zerolog.Logger) (*filesystem.W
 		watcher = &w
 	}
 
-	flagext.IgnoredFlag(flag.CommandLine, CONFIG_FILE_FLAG, "Configuration file to load.")
+	IgnoredFlag(flag.CommandLine, CONFIG_FILE_FLAG, "Configuration file to load.")
 	flag.Parse()
 
 	return watcher, nil
