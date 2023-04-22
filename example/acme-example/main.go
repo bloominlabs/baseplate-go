@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"net/http"
+	"time"
 
 	"github.com/justinas/alice"
 	"github.com/rs/zerolog"
@@ -21,6 +22,10 @@ const SLUG = "acme-example"
 type Config struct {
 	Telemetry observability.TelemetryConfig
 	Server    server.ServerConfig
+}
+
+func (c *Config) Validate() error {
+	return nil
 }
 
 func (c *Config) RegisterFlags(f *flag.FlagSet) {
@@ -64,7 +69,12 @@ func main() {
 	log.Logger.Info().Str("Addr", server.Addr).Msg("listening")
 
 	err = server.Listen()
-	defer server.Cleanup()
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+		server.Shutdown(ctx)
+		cancel()
+	}()
+
 	if err != nil {
 		log.Fatal().Err(err).Msg("error while listening to http server")
 	}
