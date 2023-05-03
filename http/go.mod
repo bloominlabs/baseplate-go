@@ -9,8 +9,8 @@ require (
 	github.com/rs/zerolog v1.29.1
 	github.com/sethvargo/go-limiter v0.7.2
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.40.0
-	go.opentelemetry.io/otel v1.14.0
-	go.opentelemetry.io/otel/trace v1.14.0
+	go.opentelemetry.io/otel v1.15.1
+	go.opentelemetry.io/otel/trace v1.15.1
 )
 
 require (
