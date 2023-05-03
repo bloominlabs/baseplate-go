@@ -17,7 +17,6 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
 	"go.opentelemetry.io/otel/propagation"
-	"go.opentelemetry.io/otel/sdk/trace"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	// semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
 )
@@ -32,7 +31,7 @@ func WithDefaultTracingOpts() []sdktrace.TracerProviderOption {
 // Initializes an OTLP exporter, and configures the corresponding trace and
 // metric providers.
 func InitTraceProvider(logger zerolog.Logger, addr string, creds *credentials.TransportCredentials, opts ...sdktrace.TracerProviderOption) (func(), error) {
-	var exporter trace.SpanExporter
+	var exporter sdktrace.SpanExporter
 
 	if creds != nil {
 		logger.Info().Str("addr", addr).Msg("otlp parameters specified. connecting via grpc to addr")
