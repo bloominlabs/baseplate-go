@@ -3,8 +3,8 @@ module github.com/bloominlabs/baseplate-go/config/observability
 go 1.20
 
 require (
-	github.com/bloominlabs/baseplate-go/config/env v0.0.0-20230503001426-308044767857
-	github.com/bloominlabs/baseplate-go/config/filesystem v0.0.0-20230503001426-308044767857
+	github.com/bloominlabs/baseplate-go/config/env v0.0.0-20230503052152-c8c9a5e78cd3
+	github.com/bloominlabs/baseplate-go/config/filesystem v0.0.0-20230503052152-c8c9a5e78cd3
 	github.com/rs/zerolog v1.29.1
 	go.opentelemetry.io/otel v1.15.1
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v0.38.1
