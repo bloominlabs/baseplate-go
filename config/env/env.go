@@ -43,6 +43,18 @@ func GetEnvInt(key string, def int) (int, error) {
 	return v, nil
 }
 
+func GetEnvInt64(key string, def int64) (int64, error) {
+	strValue := os.Getenv(key)
+	if strValue == "" {
+		return def, nil
+	}
+	v, err := strconv.ParseInt(strValue, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	return v, nil
+}
+
 func GetEnvBool(key string) (bool, error) {
 	strValue := os.Getenv(key)
 	if strValue == "" {
