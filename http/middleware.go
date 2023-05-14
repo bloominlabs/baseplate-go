@@ -112,10 +112,10 @@ func ErrorHandler(w http.ResponseWriter, r *http.Request, err error) {
 func RatelimiterMiddleware(h http.Handler) http.Handler {
 	store, err := memorystore.New(&memorystore.Config{
 		// Number of tokens allowed per interval.
-		Tokens: 100,
+		Tokens: 10,
 
 		// Interval until tokens reset.
-		Interval: time.Minute,
+		Interval: time.Second,
 	})
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to initialize store")
