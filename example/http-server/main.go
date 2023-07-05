@@ -15,11 +15,10 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/hlog"
 	"github.com/rs/zerolog/log"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/baggage"
 	"go.opentelemetry.io/otel/metric"
-	"go.opentelemetry.io/otel/metric/global"
-	"go.opentelemetry.io/otel/metric/instrument"
 	"go.opentelemetry.io/otel/trace"
 
 	bConfig "github.com/bloominlabs/baseplate-go/config"
@@ -63,15 +62,16 @@ func main() {
 	}
 	defer cfg.Telemetry.Shutdown(context.Background(), log.Logger)
 
-	mp := global.MeterProvider()
+	mp := otel.GetMeterProvider()
 	meter := mp.Meter(SLUG)
 	observerLock := new(sync.RWMutex)
 	underLoad := new(int64)
 	labels := new([]attribute.KeyValue)
 
+	// TODO
 	gaugeObserver, err := meter.Int64ObservableGauge(
 		"under_load",
-		instrument.WithDescription(
+		metric.WithDescription(
 			"1 if the instance is 'under load'; otherwise, 0. Used to trick the autoscaler",
 		),
 	)
@@ -84,7 +84,7 @@ func main() {
 		value := *underLoad
 		labels := *labels
 		(*observerLock).RUnlock()
-		o.ObserveInt64(gaugeObserver, value, labels...)
+		o.ObserveInt64(gaugeObserver, value, metric.WithAttributes(labels...))
 
 		return nil
 	})

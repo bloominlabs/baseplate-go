@@ -11,9 +11,9 @@ import (
 	"google.golang.org/grpc/credentials"
 
 	// runtimemetrics "go.opentelemetry.io/contrib/instrumentation/runtime"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/stdout/stdoutmetric"
-	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/sdk/metric"
 
 	"github.com/rs/zerolog"
@@ -81,7 +81,7 @@ func InitMetricsProvider(logger zerolog.Logger, addr string, credentials *creden
 		finalOpts...,
 	)
 
-	global.SetMeterProvider(provider)
+	otel.SetMeterProvider(provider)
 
 	// if err = runtimemetrics.Start(runtimemetrics.WithMinimumReadMemStatsInterval(time.Second)); err != nil {
 	// 	return nil, fmt.Errorf("failed to start runtime metrics: %w", err)
