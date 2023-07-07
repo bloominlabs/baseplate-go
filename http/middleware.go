@@ -141,19 +141,10 @@ func OTLPHandler(serviceName string) func(http.Handler) http.Handler {
 	}
 }
 
-func JWTMiddleware(issuerURL string, identifiers []string, opts ...validator.Option) func(http.Handler) http.Handler {
+func JWTMiddleware(issuerURL string, identifiers []string, opts ...jwtmiddleware.Option) func(http.Handler) http.Handler {
 	client := cleanhttp.DefaultPooledClient()
 	client.Transport = otelhttp.NewTransport(client.Transport)
 
-	finalOpts := []validator.Option{
-		validator.WithCustomClaims(
-			func() validator.CustomClaims {
-				return &StratosOAuth2CustomClaims{}
-			},
-		),
-		validator.WithAllowedClockSkew(time.Second * 10),
-	}
-	finalOpts = append(finalOpts, opts...)
 	parsedIssuerURL, err := url.Parse(issuerURL)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to parse the issuer url")
@@ -170,15 +161,21 @@ func JWTMiddleware(issuerURL string, identifiers []string, opts ...validator.Opt
 		validator.RS256,
 		parsedIssuerURL.String(),
 		identifiers,
-		finalOpts...,
+		validator.WithCustomClaims(
+			func() validator.CustomClaims {
+				return &StratosOAuth2CustomClaims{}
+			},
+		),
+		validator.WithAllowedClockSkew(time.Second*10),
 	)
 	if err != nil {
 		panic(fmt.Errorf("failed to set up the validator: %v", err))
 	}
+	finalOpts := []jwtmiddleware.Option{jwtmiddleware.WithErrorHandler(ErrorHandler)}
+	finalOpts = append(finalOpts, opts...)
 	return jwtmiddleware.New(
 		jwtValidator.ValidateToken,
-		jwtmiddleware.WithCredentialsOptional(true),
-		jwtmiddleware.WithErrorHandler(ErrorHandler),
+		finalOpts...,
 	).CheckJWT
 }
 
