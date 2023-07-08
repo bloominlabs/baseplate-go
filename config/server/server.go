@@ -113,17 +113,11 @@ type Server struct {
 
 func (c *Server) Listen() error {
 	if c.TLSConfig != nil {
-		if err := c.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
-			return fmt.Errorf("error while serving server: %w", err)
-		}
+		return c.ListenAndServeTLS("", "")
 	} else {
-		c.logger.Warn().Msg("running http server without https. this is not in production")
-		if err := c.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			return fmt.Errorf("error while serving server: %w", err)
-		}
+		c.logger.Warn().Msg("running http server without https. this is not recommended in production")
+		return c.ListenAndServe()
 	}
-
-	return nil
 }
 
 func (c *Server) Shutdown(ctx context.Context) error {
