@@ -16,13 +16,39 @@ import (
 )
 
 type ServerConfig struct {
-	Address  string
+	Address  string `toml:"address"`
 	CertPath string `toml:"cert_path"`
 	KeyPath  string `toml:"key_path"`
 }
 
-func (c *ServerConfig) RegisterFlags(f *flag.FlagSet, prefix string) {
-	f.StringVar(&c.Address, fmt.Sprintf("%s.addr", prefix), env.GetEnvStrDefault(fmt.Sprintf("NOMAD_ADDR_%s", prefix), ":8080"), "hostname:port to connect to server")
+type defaultConfig struct {
+	DefaultAddr string
+}
+
+type Option func(c defaultConfig) defaultConfig
+
+func WithDefaultAddr(addr string) Option {
+	return func(c defaultConfig) defaultConfig {
+		c.DefaultAddr = addr
+		return c
+	}
+}
+
+func (c *ServerConfig) RegisterFlags(f *flag.FlagSet, prefix string, opts ...Option) {
+	dc := defaultConfig{
+		DefaultAddr: ":8080",
+	}
+
+	for _, o := range opts {
+		dc = o(dc)
+	}
+
+	f.StringVar(
+		&c.Address,
+		fmt.Sprintf("%s.addr", prefix),
+		env.GetEnvStrDefault(fmt.Sprintf("NOMAD_ADDR_%s", prefix), dc.DefaultAddr),
+		"hostname:port to connect to server",
+	)
 
 	f.StringVar(&c.CertPath, fmt.Sprintf("%s.tls.cert.path", prefix), "", "Path to the TLS certificate file")
 	f.StringVar(&c.KeyPath, fmt.Sprintf("%s.tls.key.path", prefix), "", "Path to the TLS key file")
@@ -72,14 +98,14 @@ func (c *ServerConfig) NewServer(handler http.Handler, logger zerolog.Logger) (*
 	}
 
 	return &Server{
-		server,
+		&server,
 		logger,
 		watcher,
 	}, nil
 }
 
 type Server struct {
-	http.Server
+	*http.Server
 
 	logger  zerolog.Logger
 	watcher *filesystem.CertificateWatcher
