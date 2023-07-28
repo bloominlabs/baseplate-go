@@ -14,6 +14,7 @@ import (
 	"github.com/auth0/go-jwt-middleware/v2/validator"
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/justinas/alice"
+	"github.com/rs/cors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/hlog"
 	"github.com/rs/zerolog/log"
@@ -223,10 +224,10 @@ func HlogHandler(h http.Handler) http.Handler {
 }
 
 func CorsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Headers", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "OPTIONS,POST,GET")
-		next.ServeHTTP(w, r)
-	})
+	return cors.New(cors.Options{ // Check or reject cors TODO: cors tests
+		AllowedOrigins:   []string{"*"},
+		AllowedHeaders:   []string{"*"},
+		AllowCredentials: true,
+		Debug:            false,
+	}).Handler(next)
 }
