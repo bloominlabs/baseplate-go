@@ -6,7 +6,7 @@ replace github.com/bloominlabs/baseplate-go/config/env => ../env/
 
 require (
 	github.com/bloominlabs/baseplate-go/config/env v0.0.0-20230419034715-89fcb81782b1
-	github.com/hashicorp/consul/api v1.20.0
+	github.com/hashicorp/consul/api v1.23.0
 )
 
 require (
@@ -22,5 +22,6 @@ require (
 	github.com/mattn/go-isatty v0.0.18 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
-	golang.org/x/sys v0.7.0 // indirect
+	golang.org/x/exp v0.0.0-20230321023759-10a507213a29 // indirect
+	golang.org/x/sys v0.10.0 // indirect
 )
