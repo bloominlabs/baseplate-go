@@ -6,7 +6,7 @@ replace github.com/bloominlabs/baseplate-go/config/filesystem => ./filesystem/
 
 require (
 	github.com/bloominlabs/baseplate-go/config/filesystem v0.0.0-20230419034715-89fcb81782b1
-	github.com/pelletier/go-toml/v2 v2.0.7
+	github.com/pelletier/go-toml/v2 v2.0.9
 	github.com/rs/zerolog v1.29.1
 )
 
