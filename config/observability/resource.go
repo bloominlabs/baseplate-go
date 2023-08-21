@@ -9,7 +9,6 @@ import (
 func WithDefaultResourceOpts() []resource.Option {
 	return []resource.Option{
 		resource.WithFromEnv(),
-		resource.WithProcess(),
 		resource.WithTelemetrySDK(),
 		resource.WithHost(),
 	}

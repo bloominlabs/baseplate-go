@@ -7,18 +7,17 @@ import (
 	"os"
 	"time"
 
+	"github.com/pyroscope-io/otel-profiling-go"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
 	"go.opentelemetry.io/otel"
-	// "go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
 	"go.opentelemetry.io/otel/propagation"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	// semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
 )
 
 func WithDefaultTracingOpts() []sdktrace.TracerProviderOption {
@@ -30,7 +29,7 @@ func WithDefaultTracingOpts() []sdktrace.TracerProviderOption {
 
 // Initializes an OTLP exporter, and configures the corresponding trace and
 // metric providers.
-func InitTraceProvider(logger zerolog.Logger, addr string, creds *credentials.TransportCredentials, opts ...sdktrace.TracerProviderOption) (func(), error) {
+func InitTraceProvider(logger zerolog.Logger, serviceName string, addr string, creds *credentials.TransportCredentials, pyroscopeConfig PyroscopeConfig, opts ...sdktrace.TracerProviderOption) (func(), error) {
 	var exporter sdktrace.SpanExporter
 
 	if creds != nil {
@@ -77,7 +76,16 @@ func InitTraceProvider(logger zerolog.Logger, addr string, creds *credentials.Tr
 	tracerProvider := sdktrace.NewTracerProvider(
 		opts...,
 	)
-	otel.SetTracerProvider(tracerProvider)
+	otel.SetTracerProvider(
+		otelpyroscope.NewTracerProvider(tracerProvider,
+			otelpyroscope.WithAppName(serviceName),
+			otelpyroscope.WithPyroscopeURL(pyroscopeConfig.URL),
+			otelpyroscope.WithRootSpanOnly(true),
+			otelpyroscope.WithAddSpanName(true),
+			otelpyroscope.WithProfileURL(true),
+			otelpyroscope.WithProfileBaselineURL(true),
+		),
+	)
 
 	// set global propagator to tracecontext (the default is no-op).
 	otel.SetTextMapPropagator(propagation.TraceContext{})

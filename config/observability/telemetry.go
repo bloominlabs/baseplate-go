@@ -14,7 +14,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.18.0"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -22,12 +22,19 @@ import (
 	"github.com/bloominlabs/baseplate-go/config/filesystem"
 )
 
+type PyroscopeConfig struct {
+	URL   string `toml:"url"`
+	Token string `toml:"token"`
+}
+
 type TelemetryConfig struct {
 	OTLPAddr     string `toml:"addr"`
 	OTLPCAPath   string `toml:"ca_path"`
 	OTLPCertPath string `toml:"cert_path"`
 	OTLPKeyPath  string `toml:"key_path"`
 	Insecure     bool   `toml:"insecure"`
+
+	Pyroscope PyroscopeConfig `toml:"pyroscope"`
 
 	metricsCleanup *func()
 	tracingCleanup *func()
@@ -39,6 +46,10 @@ func (t *TelemetryConfig) RegisterFlags(f *flag.FlagSet) {
 	f.StringVar(&t.OTLPCAPath, "otlp.ca.path", env.GetEnvStrDefault("OTLP_CA_PATH", ""), "Path to certificate authority used to verify outgoing OTLP receiver connections")
 	f.StringVar(&t.OTLPCertPath, "otlp.cert.path", env.GetEnvStrDefault("OTLP_CERT_PATH", ""), "Path to certificate to encrypt outgoing OTLP receiver connections")
 	f.StringVar(&t.OTLPKeyPath, "otlp.key.path", env.GetEnvStrDefault("OTLP_KEY_PATH", ""), "Path to private key to encrypt outgoing OTLP receiver connections")
+
+	f.StringVar(&t.Pyroscope.URL, "pyroscope.url", env.GetEnvStrDefault("PYROSCOPE_URL", ""), "URL for uploading pyroscope traces")
+	f.StringVar(&t.Pyroscope.Token, "pyroscope.token", env.GetEnvStrDefault("PYROSCOPE_TOKEN", ""), "Token used for authenticated to pyroscope")
+
 	f.BoolVar(&t.Insecure, "otlp.insecure", false, "Emit OTLP without needing mTLS certificate")
 
 }
@@ -128,7 +139,6 @@ func (t *TelemetryConfig) InitializeTelemetry(ctx context.Context, serviceName s
 	if telemetryOptions.resource == nil {
 		resource, err := resource.New(ctx,
 			resource.WithFromEnv(),
-			resource.WithProcess(),
 			resource.WithTelemetrySDK(),
 			resource.WithHost(),
 			resource.WithAttributes(
@@ -167,7 +177,7 @@ func (t *TelemetryConfig) InitializeTelemetry(ctx context.Context, serviceName s
 	}
 
 	log.Info().Str("OTLPAddr", t.OTLPAddr).Str("type", "tracing").Msg("initializing provider")
-	tracingCleanup, err := InitTraceProvider(logger, t.OTLPAddr, creds, traceOpts...)
+	tracingCleanup, err := InitTraceProvider(logger, serviceName, t.OTLPAddr, creds, traceOpts...)
 	if err != nil {
 		log.Fatal().Err(err).Str("OTLPAddr", t.OTLPAddr).Str("type", "tracing").Msg("failed to intialize provider")
 	}
