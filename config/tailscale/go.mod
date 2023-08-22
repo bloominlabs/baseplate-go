@@ -5,15 +5,15 @@ go 1.20
 replace github.com/bloominlabs/baseplate-go/config/env => ../env/
 
 require (
-	github.com/bloominlabs/baseplate-go/config/env v0.0.0-00010101000000-000000000000
+	github.com/bloominlabs/baseplate-go/config/env v0.0.0-20230728211818-6c34eee71023
 	github.com/tailscale/tailscale-client-go v1.9.0
 )
 
 require (
-	github.com/golang/protobuf v1.5.2 // indirect
-	github.com/tailscale/hujson v0.0.0-20220506213045-af5ed07155e5 // indirect
-	golang.org/x/net v0.8.0 // indirect
-	golang.org/x/oauth2 v0.6.0 // indirect
+	github.com/golang/protobuf v1.5.3 // indirect
+	github.com/tailscale/hujson v0.0.0-20221223112325-20486734a56a // indirect
+	golang.org/x/net v0.12.0 // indirect
+	golang.org/x/oauth2 v0.10.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/protobuf v1.28.0 // indirect
+	google.golang.org/protobuf v1.31.0 // indirect
 )
