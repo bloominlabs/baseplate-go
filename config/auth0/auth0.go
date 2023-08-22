@@ -1,6 +1,7 @@
 package auth0
 
 import (
+	"context"
 	"crypto/tls"
 	"flag"
 	"fmt"
@@ -88,7 +89,13 @@ func (c *Auth0Config) CreateClient() (*management.Management, error) {
 	c.RLock()
 	defer c.RUnlock()
 	if c.Token == "" {
-		return management.New(c.Domain, management.WithClientCredentials(c.ClientID, c.ClientSecret), management.WithClient(client))
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
+		return management.New(
+			c.Domain,
+			management.WithClientCredentials(ctx, c.ClientID, c.ClientSecret),
+			management.WithClient(client),
+		)
 	} else {
 		return management.New(c.Domain, management.WithStaticToken(c.Token), management.WithClient(client))
 	}
