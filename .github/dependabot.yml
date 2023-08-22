@@ -34,6 +34,11 @@ updates:
       interval: weekly
       day: tuesday
   - package-ecosystem: gomod
+    directory: ./config/database
+    schedule:
+      interval: weekly
+      day: tuesday
+  - package-ecosystem: gomod
     directory: ./config/env
     schedule:
       interval: weekly
