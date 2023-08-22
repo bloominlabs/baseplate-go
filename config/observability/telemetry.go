@@ -7,20 +7,38 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime"
 	"time"
 
+	"github.com/pyroscope-io/client/pyroscope"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.18.0"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/bloominlabs/baseplate-go/config/env"
 	"github.com/bloominlabs/baseplate-go/config/filesystem"
 )
+
+type PyroscopeLogger struct {
+	logger zerolog.Logger
+}
+
+func (l *PyroscopeLogger) Infof(a string, b ...interface{})  {}
+func (l *PyroscopeLogger) Debugf(a string, b ...interface{}) {}
+func (l *PyroscopeLogger) Errorf(a string, b ...interface{}) {
+	l.logger.Error().Msg(fmt.Sprintf(a, b...))
+}
+
+type PyroscopeConfig struct {
+	URL   string `toml:"url"`
+	Token string `toml:"token"`
+	User  string `toml:"user"`
+}
 
 type TelemetryConfig struct {
 	OTLPAddr     string `toml:"addr"`
@@ -29,9 +47,12 @@ type TelemetryConfig struct {
 	OTLPKeyPath  string `toml:"key_path"`
 	Insecure     bool   `toml:"insecure"`
 
-	metricsCleanup *func()
-	tracingCleanup *func()
-	watcher        *filesystem.CertificateWatcher
+	Pyroscope PyroscopeConfig `toml:"pyroscope"`
+
+	metricsCleanup  *func()
+	tracingCleanup  *func()
+	profilerCleanup *func()
+	watcher         *filesystem.CertificateWatcher
 }
 
 func (t *TelemetryConfig) RegisterFlags(f *flag.FlagSet) {
@@ -39,6 +60,11 @@ func (t *TelemetryConfig) RegisterFlags(f *flag.FlagSet) {
 	f.StringVar(&t.OTLPCAPath, "otlp.ca.path", env.GetEnvStrDefault("OTLP_CA_PATH", ""), "Path to certificate authority used to verify outgoing OTLP receiver connections")
 	f.StringVar(&t.OTLPCertPath, "otlp.cert.path", env.GetEnvStrDefault("OTLP_CERT_PATH", ""), "Path to certificate to encrypt outgoing OTLP receiver connections")
 	f.StringVar(&t.OTLPKeyPath, "otlp.key.path", env.GetEnvStrDefault("OTLP_KEY_PATH", ""), "Path to private key to encrypt outgoing OTLP receiver connections")
+
+	f.StringVar(&t.Pyroscope.URL, "pyroscope.url", env.GetEnvStrDefault("PYROSCOPE_URL", ""), "URL for uploading pyroscope traces")
+	f.StringVar(&t.Pyroscope.Token, "pyroscope.token", env.GetEnvStrDefault("PYROSCOPE_TOKEN", ""), "Token used for authenticated to pyroscope")
+	f.StringVar(&t.Pyroscope.User, "pyroscope.user", env.GetEnvStrDefault("PYROSCOPE_User", ""), "User used for authenticated to pyroscope")
+
 	f.BoolVar(&t.Insecure, "otlp.insecure", false, "Emit OTLP without needing mTLS certificate")
 
 }
@@ -128,7 +154,6 @@ func (t *TelemetryConfig) InitializeTelemetry(ctx context.Context, serviceName s
 	if telemetryOptions.resource == nil {
 		resource, err := resource.New(ctx,
 			resource.WithFromEnv(),
-			resource.WithProcess(),
 			resource.WithTelemetrySDK(),
 			resource.WithHost(),
 			resource.WithAttributes(
@@ -167,12 +192,59 @@ func (t *TelemetryConfig) InitializeTelemetry(ctx context.Context, serviceName s
 	}
 
 	log.Info().Str("OTLPAddr", t.OTLPAddr).Str("type", "tracing").Msg("initializing provider")
-	tracingCleanup, err := InitTraceProvider(logger, t.OTLPAddr, creds, traceOpts...)
+	tracingCleanup, err := InitTraceProvider(logger, serviceName, t.OTLPAddr, creds, t.Pyroscope, traceOpts...)
 	if err != nil {
 		log.Fatal().Err(err).Str("OTLPAddr", t.OTLPAddr).Str("type", "tracing").Msg("failed to intialize provider")
 	}
 	t.tracingCleanup = &tracingCleanup
 	log.Debug().Str("OTLPAddr", t.OTLPAddr).Str("type", "tracing").Msg("initialized provider")
+
+	runtime.SetMutexProfileFraction(5)
+	runtime.SetBlockProfileRate(5)
+
+	if t.Pyroscope.URL != "" {
+		log.Info().Str("url", t.Pyroscope.URL).Str("type", "profiling").Msg("initializing provider")
+
+		p, err := pyroscope.Start(pyroscope.Config{
+			ApplicationName: serviceName,
+
+			// replace this with the address of pyroscope server
+			ServerAddress:     t.Pyroscope.URL,
+			BasicAuthUser:     t.Pyroscope.User,
+			BasicAuthPassword: t.Pyroscope.Token,
+
+			// you can disable logging by setting this to nil
+			Logger: &PyroscopeLogger{logger: log.Logger},
+
+			// you can provide static tags via a map:
+			// Tags: map[string]string{"nomad_allocation_id": os.Getenv("NOMAD_ALLOCATION_ID")},
+
+			ProfileTypes: []pyroscope.ProfileType{
+				// these profile types are enabled by default:
+				pyroscope.ProfileCPU,
+				pyroscope.ProfileAllocObjects,
+				pyroscope.ProfileAllocSpace,
+				pyroscope.ProfileInuseObjects,
+				pyroscope.ProfileInuseSpace,
+
+				pyroscope.ProfileGoroutines,
+				pyroscope.ProfileMutexCount,
+				pyroscope.ProfileMutexDuration,
+				pyroscope.ProfileBlockCount,
+				pyroscope.ProfileBlockDuration,
+			},
+		})
+
+		if err != nil {
+			log.Fatal().Str("url", t.Pyroscope.URL).Str("type", "profiling").Err(err).Msg("failed to initialize provider")
+		}
+
+		cleanup := func() {
+			p.Stop()
+		}
+
+		t.profilerCleanup = &cleanup
+	}
 
 	return nil
 }
@@ -184,6 +256,10 @@ func (t *TelemetryConfig) Shutdown(ctx context.Context, logger zerolog.Logger) e
 
 	if t.tracingCleanup != nil {
 		(*t.tracingCleanup)()
+	}
+
+	if t.profilerCleanup != nil {
+		(*t.profilerCleanup)()
 	}
 
 	if t.watcher != nil {
