@@ -72,7 +72,7 @@ func InitMetricsProvider(logger zerolog.Logger, addr string, credentials *creden
 		}
 	}
 
-	reader := metric.NewPeriodicReader(exporter, metric.WithInterval(time.Second))
+	reader := metric.NewPeriodicReader(exporter, metric.WithInterval(time.Second*15))
 	defaultOpts := []metric.Option{
 		metric.WithReader(reader),
 	}
