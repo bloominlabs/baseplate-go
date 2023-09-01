@@ -89,11 +89,9 @@ func (c *Auth0Config) CreateClient() (*management.Management, error) {
 	c.RLock()
 	defer c.RUnlock()
 	if c.Token == "" {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-		defer cancel()
 		return management.New(
 			c.Domain,
-			management.WithClientCredentials(ctx, c.ClientID, c.ClientSecret),
+			management.WithClientCredentials(context.Background(), c.ClientID, c.ClientSecret),
 			management.WithClient(client),
 		)
 	} else {

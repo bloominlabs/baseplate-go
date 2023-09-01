@@ -3,8 +3,8 @@ module github.com/bloominlabs/baseplate-go/config/auth0
 go 1.20
 
 require (
-	github.com/auth0/go-auth0 v1.0.1
-	github.com/bloominlabs/baseplate-go/config/env v0.0.0-20230822021333-c7741cde2d19
+	github.com/auth0/go-auth0 v1.0.2
+	github.com/bloominlabs/baseplate-go/config/env v0.0.0-20230830000604-fc56ee0ccd90
 	github.com/hashicorp/go-cleanhttp v0.5.2
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.43.0
 )
