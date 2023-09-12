@@ -6,7 +6,7 @@ replace github.com/bloominlabs/baseplate-go/config/env => ../env/
 
 require (
 	entgo.io/ent v0.12.3
-	github.com/XSAM/otelsql v0.23.0
+	github.com/XSAM/otelsql v0.24.0
 	github.com/bloominlabs/baseplate-go/config/env v0.0.0-20230425235927-599945dc67e9
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/hashicorp/go-multierror v1.1.1
