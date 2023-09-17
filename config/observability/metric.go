@@ -34,7 +34,7 @@ func WithDefaultMetricOpts() []metric.Option {
 // reworks the metrics API upstream to support globals. This will be updated in
 // tandem when https://github.com/open-telemetry/opentelemetry-go/pull/2587 is
 // deployed.
-func InitMetricsProvider(logger zerolog.Logger, addr string, credentials *credentials.TransportCredentials, opts ...metric.Option) (func(), error) {
+func InitMetricsProvider(logger zerolog.Logger, addr string, credentials *credentials.TransportCredentials, collectionInterval time.Duration, opts ...metric.Option) (func(), error) {
 	var exporter metric.Exporter
 	if credentials != nil {
 		logger.Info().Str("addr", addr).Msg("otlp parameters specified. connecting via grpc to addr")
@@ -72,7 +72,7 @@ func InitMetricsProvider(logger zerolog.Logger, addr string, credentials *creden
 		}
 	}
 
-	reader := metric.NewPeriodicReader(exporter, metric.WithInterval(time.Second*15))
+	reader := metric.NewPeriodicReader(exporter, metric.WithInterval(collectionInterval))
 	defaultOpts := []metric.Option{
 		metric.WithReader(reader),
 	}

@@ -47,6 +47,8 @@ type TelemetryConfig struct {
 	OTLPKeyPath  string `toml:"key_path"`
 	Insecure     bool   `toml:"insecure"`
 
+	MetricsCollectionInterval time.Duration `toml:"metrics_collection_interval"`
+
 	Pyroscope PyroscopeConfig `toml:"pyroscope"`
 
 	metricsCleanup  *func()
@@ -64,6 +66,8 @@ func (t *TelemetryConfig) RegisterFlags(f *flag.FlagSet) {
 	f.StringVar(&t.Pyroscope.URL, "pyroscope.url", env.GetEnvStrDefault("PYROSCOPE_URL", ""), "URL for uploading pyroscope traces")
 	f.StringVar(&t.Pyroscope.Token, "pyroscope.token", env.GetEnvStrDefault("PYROSCOPE_TOKEN", ""), "Token used for authenticated to pyroscope")
 	f.StringVar(&t.Pyroscope.User, "pyroscope.user", env.GetEnvStrDefault("PYROSCOPE_User", ""), "User used for authenticated to pyroscope")
+
+	f.DurationVar(&t.MetricsCollectionInterval, "otlp.metrics_collection_interval", env.GetEnvDurDefault("METRICS_COLLECTION_INTERVAL", time.Minute), "User used for authenticated to pyroscope")
 
 	f.BoolVar(&t.Insecure, "otlp.insecure", false, "Emit OTLP without needing mTLS certificate")
 
@@ -178,7 +182,7 @@ func (t *TelemetryConfig) InitializeTelemetry(ctx context.Context, serviceName s
 		metricOpts = append(metricOpts, telemetryOptions.metricOptions...)
 	}
 
-	metricsCleanup, err := InitMetricsProvider(logger, t.OTLPAddr, creds, metricOpts...)
+	metricsCleanup, err := InitMetricsProvider(logger, t.OTLPAddr, creds, t.MetricsCollectionInterval, metricOpts...)
 	if err != nil {
 		return fmt.Errorf("failed to initialize metric provider %w", err)
 	}
