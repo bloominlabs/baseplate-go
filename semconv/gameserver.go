@@ -46,12 +46,12 @@ func ServerID(val string) attribute.KeyValue {
 // "server.slug" semantic conventions. It represents the the unique ID of a
 // game.
 func ServerSlug(val string) attribute.KeyValue {
-	return ServerIDKey.String(val)
+	return ServerSlugKey.String(val)
 }
 
 // ServerVersion returns an attribute KeyValue conforming to the
 // "server.version" semantic conventions. It represents the the versino
 // user's server.
 func ServerVersion(val string) attribute.KeyValue {
-	return ServerIDKey.String(val)
+	return ServerVersionKey.String(val)
 }
