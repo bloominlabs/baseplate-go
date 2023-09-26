@@ -1,5 +1,5 @@
-entgo.io/ent v0.12.3 h1:N5lO2EOrHpCH5HYfiMOCHYbo+oh5M8GjT0/cx5x6xkk=
-entgo.io/ent v0.12.3/go.mod h1:AigGGx+tbrBBYHAzGOg8ND661E5cxx1Uiu5o/otJ6Yg=
+entgo.io/ent v0.12.4 h1:LddPnAyxls/O7DTXZvUGDj0NZIdGSu317+aoNLJWbD8=
+entgo.io/ent v0.12.4/go.mod h1:Y3JVAjtlIk8xVZYSn3t3mf8xlZIn5SAOXZQxD6kKI+Q=
 github.com/DATA-DOG/go-sqlmock v1.5.0 h1:Shsta01QNfFxHCfpW6YH2STWB0MudeXXEWMr20OEh60=
 github.com/XSAM/otelsql v0.25.0 h1:ji1G+O45lrmZV9pXv2jQNRzYVFIwEB0jlY0XXdgpuNk=
 github.com/XSAM/otelsql v0.25.0/go.mod h1:VfWJ7nRF1t74mSL36s0ksIohT4nmFH5/opajHcmXPFc=
