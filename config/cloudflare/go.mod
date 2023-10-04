@@ -6,7 +6,7 @@ replace github.com/bloominlabs/baseplate-go/config/env => ../env/
 
 require (
 	github.com/bloominlabs/baseplate-go/config/env v0.0.0-20230419034715-89fcb81782b1
-	github.com/cloudflare/cloudflare-go v0.77.0
+	github.com/cloudflare/cloudflare-go v0.78.0
 )
 
 require (
