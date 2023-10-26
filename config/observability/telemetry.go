@@ -220,23 +220,7 @@ func (t *TelemetryConfig) InitializeTelemetry(ctx context.Context, serviceName s
 			// you can disable logging by setting this to nil
 			Logger: &PyroscopeLogger{logger: log.Logger},
 
-			// you can provide static tags via a map:
-			// Tags: map[string]string{"nomad_allocation_id": os.Getenv("NOMAD_ALLOCATION_ID")},
-
-			ProfileTypes: []pyroscope.ProfileType{
-				// these profile types are enabled by default:
-				pyroscope.ProfileCPU,
-				pyroscope.ProfileAllocObjects,
-				pyroscope.ProfileAllocSpace,
-				pyroscope.ProfileInuseObjects,
-				pyroscope.ProfileInuseSpace,
-
-				pyroscope.ProfileGoroutines,
-				pyroscope.ProfileMutexCount,
-				pyroscope.ProfileMutexDuration,
-				pyroscope.ProfileBlockCount,
-				pyroscope.ProfileBlockDuration,
-			},
+			UploadRate: time.Second * 60,
 		})
 
 		if err != nil {
