@@ -2,6 +2,7 @@ package cloudflare
 
 import (
 	"flag"
+	"fmt"
 	"sync"
 
 	"github.com/cloudflare/cloudflare-go"
@@ -23,8 +24,8 @@ type RatelimitConfiguration struct {
 type CloudflareConfig struct {
 	sync.RWMutex
 
-	Token   string
-	BaseURL string
+	Token   string `toml:"api_token"`
+	BaseURL string `toml:"base_url"`
 
 	RatelimitConfiguration RatelimitConfiguration `toml:"ratelimit"`
 
@@ -34,6 +35,13 @@ type CloudflareConfig struct {
 func (c *CloudflareConfig) RegisterFlags(f *flag.FlagSet) {
 	f.StringVar(&c.Token, "cloudflare.token", env.GetEnvStrDefault("CLOUDFLARE_API_TOKEN", ""), "Cloudflare API token toauthenticate")
 	f.StringVar(&c.BaseURL, "cloudflare.base-url", env.GetEnvStrDefault("CLOUDFLARE_BASE_URL", ""), "Base URL to use for requests. normally used by tests")
+}
+
+func (c *CloudflareConfig) Validate() error {
+	if c.Token == "" {
+		return fmt.Errorf("no cloudflare token provided. please specify 'cloudflare.token' via cli, 'CLOUDFLARE_API_TOKEN' in the environment, or 'api_token' in the config ")
+	}
+	return nil
 }
 
 func (c *CloudflareConfig) Merge(other *CloudflareConfig) error {
@@ -72,7 +80,7 @@ func (c *CloudflareConfig) GetClient() (cloudflare.API, error) {
 	if c.client == nil {
 		client, err := c.CreateClient()
 		if err != nil {
-			return *client, err
+			return cloudflare.API{}, err
 		}
 		c.Lock()
 		c.client = client
