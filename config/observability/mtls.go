@@ -4,7 +4,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	"google.golang.org/grpc/credentials"
 )
@@ -15,7 +15,7 @@ func LoadKeyPair(ca_path, cert_path, key_path string) (*credentials.TransportCre
 		return nil, err
 	}
 
-	ca, err := ioutil.ReadFile(ca_path)
+	ca, err := os.ReadFile(ca_path)
 	if err != nil {
 		return nil, fmt.Errorf("can't read ca file from %s", ca_path)
 	}

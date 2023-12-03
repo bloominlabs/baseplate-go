@@ -6,6 +6,7 @@ import (
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/sdk/resource"
+	semconv "go.opentelemetry.io/otel/semconv/v1.18.0"
 )
 
 type nomad struct{}
@@ -32,8 +33,16 @@ func WithDefaultResourceOpts() []resource.Option {
 	}
 }
 
-func WithDefaultResource(ctx context.Context) (*resource.Resource, error) {
+func WithDefaultResource(ctx context.Context, serviceName string) (*resource.Resource, error) {
+	opts := WithDefaultResourceOpts()
+	opts = append(opts, resource.WithAttributes(
+		// the service name used to display traces in backends
+		semconv.ServiceNameKey.String(serviceName),
+		// attribute.String("environment", config.Environment),
+		// attribute.Int64("ID", config.ID),
+	))
+
 	return resource.New(ctx,
-		WithDefaultResourceOpts()...,
+		opts...,
 	)
 }

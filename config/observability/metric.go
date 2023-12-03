@@ -20,8 +20,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func WithDefaultMetricOpts() []metric.Option {
-	res, _ := WithDefaultResource(context.Background())
+func WithDefaultMetricOpts(serviceName string) []metric.Option {
+	res, _ := WithDefaultResource(context.Background(), serviceName)
 	return []metric.Option{
 		metric.WithResource(res),
 	}

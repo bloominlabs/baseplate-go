@@ -20,8 +20,8 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
-func WithDefaultTracingOpts() []sdktrace.TracerProviderOption {
-	res, _ := WithDefaultResource(context.Background())
+func WithDefaultTracingOpts(serviceName string) []sdktrace.TracerProviderOption {
+	res, _ := WithDefaultResource(context.Background(), serviceName)
 	return []sdktrace.TracerProviderOption{
 		sdktrace.WithResource(res),
 	}

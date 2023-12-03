@@ -16,7 +16,6 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.18.0"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -156,17 +155,7 @@ func (t *TelemetryConfig) InitializeTelemetry(ctx context.Context, serviceName s
 	telemetryOptions.parseOptions(options...)
 
 	if telemetryOptions.resource == nil {
-		resource, err := resource.New(ctx,
-			resource.WithFromEnv(),
-			resource.WithTelemetrySDK(),
-			resource.WithHost(),
-			resource.WithAttributes(
-				// the service name used to display traces in backends
-				semconv.ServiceNameKey.String(serviceName),
-				// attribute.String("environment", config.Environment),
-				// attribute.Int64("ID", config.ID),
-			),
-		)
+		resource, err := WithDefaultResource(ctx, serviceName)
 		if err != nil {
 			return fmt.Errorf("failed to create resource: %w", err)
 		}
@@ -176,7 +165,7 @@ func (t *TelemetryConfig) InitializeTelemetry(ctx context.Context, serviceName s
 	logger.Info().Str("OTLPAddr", t.OTLPAddr).Msg("initializing observability")
 
 	logger.Info().Str("OTLPAddr", t.OTLPAddr).Str("type", "metrics").Msg("initializing provider")
-	metricOpts := WithDefaultMetricOpts()
+	metricOpts := WithDefaultMetricOpts(serviceName)
 	metricOpts = append(metricOpts, metric.WithResource(telemetryOptions.resource))
 	if len(telemetryOptions.metricOptions) > 0 {
 		metricOpts = append(metricOpts, telemetryOptions.metricOptions...)
@@ -189,7 +178,7 @@ func (t *TelemetryConfig) InitializeTelemetry(ctx context.Context, serviceName s
 	t.metricsCleanup = &metricsCleanup
 	log.Debug().Str("OTLPAddr", t.OTLPAddr).Str("type", "metrics").Msg("initialized provider")
 
-	traceOpts := WithDefaultTracingOpts()
+	traceOpts := WithDefaultTracingOpts(serviceName)
 	traceOpts = append(traceOpts, sdktrace.WithResource(telemetryOptions.resource))
 	if len(telemetryOptions.tracingOptions) > 0 {
 		traceOpts = append(traceOpts, telemetryOptions.tracingOptions...)
