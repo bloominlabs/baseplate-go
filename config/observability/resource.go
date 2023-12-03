@@ -4,9 +4,10 @@ import (
 	"context"
 	"os"
 
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.18.0"
+
+	bSemconv "github.com/bloominlabs/baseplate-go/semconv"
 )
 
 type nomad struct{}
@@ -14,8 +15,8 @@ type nomad struct{}
 // Detect returns a *Resource that describes the host being run on.
 func (nomad) Detect(ctx context.Context) (*resource.Resource, error) {
 	return resource.NewSchemaless(
-		attribute.String("nomad.job.name", os.Getenv("NOMAD_JOB_NAME")),
-		attribute.String("nomad.alloc.id", os.Getenv("NOMAD_ALLOC_ID")),
+		bSemconv.NomadJobName(os.Getenv("NOMAD_JOB_NAME")),
+		bSemconv.NomadAllocID(os.Getenv("NOMAD_ALLOC_ID")),
 	), nil
 }
 
