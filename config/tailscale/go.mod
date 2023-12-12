@@ -6,7 +6,7 @@ replace github.com/bloominlabs/baseplate-go/config/env => ../env/
 
 require (
 	github.com/bloominlabs/baseplate-go/config/env v0.0.0-20230728211818-6c34eee71023
-	github.com/tailscale/tailscale-client-go v1.14.0
+	github.com/tailscale/tailscale-client-go v1.15.0
 )
 
 require (
