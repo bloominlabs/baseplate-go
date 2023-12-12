@@ -6,7 +6,7 @@ replace github.com/bloominlabs/baseplate-go/config/env => ../env/
 
 require (
 	github.com/bloominlabs/baseplate-go/config/env v0.0.0-20231114235859-a5f525515384
-	github.com/cloudflare/cloudflare-go v0.82.0
+	github.com/cloudflare/cloudflare-go v0.83.0
 )
 
 require (
@@ -14,7 +14,7 @@ require (
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.5 // indirect
-	golang.org/x/net v0.18.0 // indirect
+	golang.org/x/net v0.19.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
-	golang.org/x/time v0.4.0 // indirect
+	golang.org/x/time v0.5.0 // indirect
 )
