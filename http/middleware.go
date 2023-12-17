@@ -110,25 +110,56 @@ func ErrorHandler(w http.ResponseWriter, r *http.Request, err error) {
 	}
 }
 
-func RatelimiterMiddleware(h http.Handler) http.Handler {
-	store, err := memorystore.New(&memorystore.Config{
-		// Number of tokens allowed per interval.
-		Tokens: 10,
+type Config struct {
+	KeyFunc           httplimit.KeyFunc
+	MemoryStoreConfig *memorystore.Config
+}
 
-		// Interval until tokens reset.
-		Interval: time.Second,
-	})
+// Option is how options for the JWTMiddleware are set up.
+type RatelimiterOption func(*Config)
+
+// WithInterval sets the interval the ratelimiter token bucket refreshes
+//
+// Default value: time.Second.
+func WithInterval(value time.Duration) RatelimiterOption {
+	return func(c *Config) {
+		c.MemoryStoreConfig.Interval = value
+	}
+}
+
+func WithTokens(value uint64) RatelimiterOption {
+	return func(c *Config) {
+		c.MemoryStoreConfig.Tokens = value
+	}
+}
+
+func RatelimiterMiddleware(opts ...RatelimiterOption) func(http.Handler) http.Handler {
+	config := Config{
+		KeyFunc: httplimit.IPKeyFunc(),
+		MemoryStoreConfig: &memorystore.Config{
+			// Number of tokens allowed per interval.
+			Tokens: 10,
+
+			// Interval until tokens reset.
+			Interval: time.Second,
+		},
+	}
+	for _, opt := range opts {
+		opt(&config)
+	}
+
+	store, err := memorystore.New(config.MemoryStoreConfig)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to initialize store")
 	}
 
-	middleware, err := httplimit.NewMiddleware(store, httplimit.IPKeyFunc())
+	middleware, err := httplimit.NewMiddleware(store, config.KeyFunc)
 	if err != nil {
 
 		log.Fatal().Err(err).Msg("failed to initialize middleware")
 	}
 
-	return middleware.Handle(h)
+	return func(h http.Handler) http.Handler { return middleware.Handle(h) }
 }
 
 func OTLPHandler(serviceName string) func(http.Handler) http.Handler {
