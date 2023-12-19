@@ -23,7 +23,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rs/xid v1.5.0 // indirect
 	go.opentelemetry.io/otel/metric v1.21.0 // indirect
-	golang.org/x/crypto v0.16.0 // indirect
+	golang.org/x/crypto v0.17.0 // indirect
 	golang.org/x/sys v0.15.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.6.0 // indirect
 )
