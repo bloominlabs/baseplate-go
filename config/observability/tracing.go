@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/pyroscope-io/otel-profiling-go"
+	"github.com/grafana/otel-profiling-go"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"

@@ -10,7 +10,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/pyroscope-io/client/pyroscope"
+	"github.com/grafana/pyroscope-go"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"go.opentelemetry.io/otel/sdk/metric"
