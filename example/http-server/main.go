@@ -119,7 +119,7 @@ func main() {
 	chain := alice.New(
 		bHttp.OTLPHandler(SLUG),
 		bHttp.HlogHandler,
-		bHttp.RatelimiterMiddleware,
+		bHttp.RatelimiterMiddleware(),
 	)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", http.HandlerFunc(helloHandler))
