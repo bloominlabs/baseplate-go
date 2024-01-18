@@ -27,8 +27,9 @@ import (
 
 // CustomClaims contains custom data we want from the token.
 type StratosOAuth2CustomClaims struct {
-	Scope  string `json:"scope"`
-	UserID string `json:"https://stratos.host/user_id"`
+	Scope       string   `json:"scope"`
+	UserID      string   `json:"https://stratos.host/user_id"`
+	Permissions []string `json:"permissions"`
 }
 
 func (c StratosOAuth2CustomClaims) Validate(ctx context.Context) error {
@@ -39,6 +40,16 @@ func (c *StratosOAuth2CustomClaims) HasScope(requestedScope string) bool {
 	scopes := strings.Split(c.Scope, " ")
 	for _, scope := range scopes {
 		if requestedScope == scope {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (c *StratosOAuth2CustomClaims) HasPermission(requestedPermission string) bool {
+	for _, permission := range c.Permissions {
+		if requestedPermission == permission {
 			return true
 		}
 	}
