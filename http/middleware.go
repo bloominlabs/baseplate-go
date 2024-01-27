@@ -57,22 +57,22 @@ func (c *StratosOAuth2CustomClaims) HasPermission(requestedPermission string) bo
 	return false
 }
 
-// Deprecated: The StratosOAuth2CustomClaims struct now has the 'HasScope'
-// function which can be used instead
-func HasScope(requestedScope string, scopes []string) bool {
-	for _, scope := range scopes {
-		if requestedScope == scope {
-			return true
-		}
-	}
-
-	return false
+type NomadCustomClaims struct {
+	AllocationID string `json:"nomad_allocation_id"`
+	JobID        string `json:"nomad_job_id"`
+	Namespace    string `json:"nomad_namespace"`
+	Task         string `json:"nomad_task"`
+	Sub          string `json:"sub"`
 }
 
-// JWTClaimsValue gets the parsed claims from the JWT provided in the request.
+func (c NomadCustomClaims) Validate(ctx context.Context) error {
+	return nil
+}
+
+// JWTClaimsValueFromCtx gets the parsed claims from the JWT provided in the request.
 // Requires running hte JWTValidatorMiddleware. Can then be used to extra custom claims via
 // ```
-// validatedClaims, ok := JWTClaimsValue(ctx)
+// validatedClaims, ok := JWTClaimsValueFromCtx(ctx)
 //
 //	if !ok {
 //	 return "", errors.New("failed to decode JWT claims from context")
@@ -85,18 +85,32 @@ func HasScope(requestedScope string, scopes []string) bool {
 //	}
 //
 // ```
-func JWTClaimsValue(ctx context.Context) (*validator.ValidatedClaims, bool) {
+func JWTClaimsValueFromCtx(ctx context.Context) (*validator.ValidatedClaims, bool) {
 	raw, ok := ctx.Value(jwtmiddleware.ContextKey{}).(*validator.ValidatedClaims)
 	return raw, ok
 }
 
-func CustomClaims(ctx context.Context) (*StratosOAuth2CustomClaims, error) {
-	raw, ok := JWTClaimsValue(ctx)
+func Auth0CustomClaimsFromCtx(ctx context.Context) (*StratosOAuth2CustomClaims, error) {
+	raw, ok := JWTClaimsValueFromCtx(ctx)
 	if !ok {
 		return nil, fmt.Errorf("did not find JWT in context with the ContextKey. did you run the JWT middleware?")
 	}
 
 	customClaims, ok := raw.CustomClaims.(*StratosOAuth2CustomClaims)
+	if !ok {
+		return nil, fmt.Errorf("failed to convert custom claims returned to StratosOAuth2CustomClaims")
+	}
+
+	return customClaims, nil
+}
+
+func NomadCustomClaimsFromCtx(ctx context.Context) (*NomadCustomClaims, error) {
+	raw, ok := JWTClaimsValueFromCtx(ctx)
+	if !ok {
+		return nil, fmt.Errorf("did not find JWT in context with the ContextKey. did you run the JWT middleware?")
+	}
+
+	customClaims, ok := raw.CustomClaims.(*NomadCustomClaims)
 	if !ok {
 		return nil, fmt.Errorf("failed to convert custom claims returned to StratosOAuth2CustomClaims")
 	}
@@ -144,6 +158,12 @@ func WithTokens(value uint64) RatelimiterOption {
 	}
 }
 
+func WithKeyFunc(value httplimit.KeyFunc) RatelimiterOption {
+	return func(c *Config) {
+		c.KeyFunc = value
+	}
+}
+
 func RatelimiterMiddleware(opts ...RatelimiterOption) func(http.Handler) http.Handler {
 	config := Config{
 		KeyFunc: httplimit.IPKeyFunc(),
@@ -170,7 +190,7 @@ func RatelimiterMiddleware(opts ...RatelimiterOption) func(http.Handler) http.Ha
 		log.Fatal().Err(err).Msg("failed to initialize middleware")
 	}
 
-	return func(h http.Handler) http.Handler { return middleware.Handle(h) }
+	return middleware.Handle
 }
 
 func OTLPHandler(serviceName string) func(http.Handler) http.Handler {
@@ -184,7 +204,7 @@ func OTLPHandler(serviceName string) func(http.Handler) http.Handler {
 	}
 }
 
-func JWTMiddleware(issuerURL string, identifiers []string, opts ...jwtmiddleware.Option) func(http.Handler) http.Handler {
+func jwtMiddleware(issuerURL string, audience []string, customClaims func() validator.CustomClaims, opts ...jwtmiddleware.Option) func(http.Handler) http.Handler {
 	client := cleanhttp.DefaultPooledClient()
 	client.Transport = otelhttp.NewTransport(client.Transport)
 
@@ -203,12 +223,8 @@ func JWTMiddleware(issuerURL string, identifiers []string, opts ...jwtmiddleware
 		provider.KeyFunc,
 		validator.RS256,
 		parsedIssuerURL.String(),
-		identifiers,
-		validator.WithCustomClaims(
-			func() validator.CustomClaims {
-				return &StratosOAuth2CustomClaims{}
-			},
-		),
+		audience,
+		validator.WithCustomClaims(customClaims),
 		validator.WithAllowedClockSkew(time.Second*10),
 	)
 	if err != nil {
@@ -220,6 +236,18 @@ func JWTMiddleware(issuerURL string, identifiers []string, opts ...jwtmiddleware
 		jwtValidator.ValidateToken,
 		finalOpts...,
 	).CheckJWT
+}
+
+func Auth0JWTMiddleware(issuerURL string, audience []string, opts ...jwtmiddleware.Option) func(http.Handler) http.Handler {
+	return jwtMiddleware(issuerURL, audience, func() validator.CustomClaims {
+		return &StratosOAuth2CustomClaims{}
+	}, opts...)
+}
+
+func NomadJWTMiddleware(nomadURL string, audience []string, opts ...jwtmiddleware.Option) func(http.Handler) http.Handler {
+	return jwtMiddleware(nomadURL, audience, func() validator.CustomClaims {
+		return &NomadCustomClaims{}
+	}, opts...)
 }
 
 // RequestHandler adds the trace id as a field to the context's logger
