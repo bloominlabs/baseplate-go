@@ -8,7 +8,7 @@ require (
 	github.com/bloominlabs/baseplate-go/config/server v0.0.0-20230730230838-96a1f424e7f0
 	github.com/bloominlabs/baseplate-go/http v0.0.0-20230730230838-96a1f424e7f0
 	github.com/justinas/alice v1.2.0
-	github.com/rs/zerolog v1.31.0
+	github.com/rs/zerolog v1.32.0
 )
 
 require (
