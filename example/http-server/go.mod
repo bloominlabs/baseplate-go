@@ -23,9 +23,9 @@ require (
 	github.com/bloominlabs/baseplate-go/http v0.0.0-20230730230838-96a1f424e7f0
 	github.com/justinas/alice v1.2.0
 	github.com/rs/zerolog v1.31.0
-	go.opentelemetry.io/otel v1.21.0
-	go.opentelemetry.io/otel/metric v1.21.0
-	go.opentelemetry.io/otel/trace v1.21.0
+	go.opentelemetry.io/otel v1.23.0
+	go.opentelemetry.io/otel/metric v1.23.0
+	go.opentelemetry.io/otel/trace v1.23.0
 )
 
 require (
