@@ -120,8 +120,9 @@ func NomadCustomClaimsFromCtx(ctx context.Context) (*NomadCustomClaims, error) {
 
 func ErrorHandler(w http.ResponseWriter, r *http.Request, err error) {
 	w.Header().Set("Content-Type", "application/json")
+	logger := hlog.FromRequest(r)
 
-	log.Warn().Stack().Err(err).Msg("user failed to authenticate using JWT")
+	logger.Warn().Stack().Err(err).Msg("user failed to authenticate using JWT")
 	switch {
 	case errors.Is(err, jwtmiddleware.ErrJWTMissing):
 		w.WriteHeader(http.StatusBadRequest)
@@ -256,7 +257,7 @@ func TraceIDHandler(fieldKey string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			span := trace.SpanFromContext(r.Context())
-			log := zerolog.Ctx(r.Context())
+			log := hlog.FromRequest(r)
 			log.UpdateContext(func(c zerolog.Context) zerolog.Context {
 				return c.Str("traceID", span.SpanContext().TraceID().String())
 			})
