@@ -5,7 +5,7 @@ go 1.20
 replace github.com/bloominlabs/baseplate-go/config/env => ../env/
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.25.0
+	github.com/aws/aws-sdk-go-v2 v1.25.2
 	github.com/aws/aws-sdk-go-v2/config v1.27.1
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.1
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.50.2
@@ -32,7 +32,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sso v1.19.1 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.22.1 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.27.1 // indirect
-	github.com/aws/smithy-go v1.20.0 // indirect
+	github.com/aws/smithy-go v1.20.1 // indirect
 	github.com/go-logr/logr v1.4.1 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
