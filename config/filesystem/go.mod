@@ -8,7 +8,7 @@ replace github.com/bloominlabs/baseplate-go/config/env => ../env
 
 require (
 	github.com/bloominlabs/baseplate-go/tlsutil v0.0.0-20230313062030-93e37f6e4bfe
-	github.com/fsnotify/fsnotify v1.6.0
+	github.com/fsnotify/fsnotify v1.7.0
 	github.com/rs/zerolog v1.31.0
 	github.com/stretchr/testify v1.9.0
 )
