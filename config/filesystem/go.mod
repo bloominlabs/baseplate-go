@@ -10,7 +10,7 @@ require (
 	github.com/bloominlabs/baseplate-go/tlsutil v0.0.0-20230313062030-93e37f6e4bfe
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/rs/zerolog v1.31.0
-	github.com/stretchr/testify v1.8.2
+	github.com/stretchr/testify v1.9.0
 )
 
 require (
