@@ -8,7 +8,7 @@ require (
 	github.com/bloominlabs/baseplate-go/config/env v0.0.0-20230419034715-89fcb81782b1
 	github.com/hashicorp/go-cleanhttp v0.5.2
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/stripe/stripe-go/v76 v76.18.0
+	github.com/stripe/stripe-go/v76 v76.19.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.49.0
 )
 
