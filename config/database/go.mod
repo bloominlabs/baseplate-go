@@ -8,12 +8,13 @@ require (
 	entgo.io/ent v0.13.0
 	github.com/XSAM/otelsql v0.28.0
 	github.com/bloominlabs/baseplate-go/config/env v0.0.0-20230425235927-599945dc67e9
-	github.com/go-sql-driver/mysql v1.7.1
+	github.com/go-sql-driver/mysql v1.8.0
 	github.com/hashicorp/go-multierror v1.1.1
 	go.opentelemetry.io/otel v1.23.1
 )
 
 require (
+	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/go-logr/logr v1.4.1 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/google/uuid v1.3.0 // indirect
