@@ -71,11 +71,13 @@ func (c *PyroscopeConfig) Start(ctx context.Context, serviceName string) error {
 }
 
 func (c *PyroscopeConfig) Stop() error {
-	err := c.profiler.Stop()
-	if err != nil {
-		return err
+	if c.profiler != nil {
+		err := c.profiler.Stop()
+		if err != nil {
+			return err
+		}
+		c.profiler = nil
 	}
-	c.profiler = nil
 	return nil
 }
 
@@ -125,7 +127,7 @@ func (t *TelemetryConfig) Merge(o *TelemetryConfig) error {
 	}
 
 	if o.Pyroscope.User != "" {
-		t.Pyroscope.User = o.Pyroscope.Token
+		t.Pyroscope.User = o.Pyroscope.User
 	}
 
 	err := t.Pyroscope.Stop()
