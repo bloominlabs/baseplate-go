@@ -10,12 +10,12 @@ require (
 	github.com/grafana/pyroscope-go v1.0.4
 	github.com/rs/zerolog v1.31.0
 	go.opentelemetry.io/otel v1.24.0
-	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v0.44.0
+	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.24.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.24.0
 	go.opentelemetry.io/otel/exporters/stdout/stdoutmetric v0.44.0
 	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.24.0
 	go.opentelemetry.io/otel/sdk v1.24.0
-	go.opentelemetry.io/otel/sdk/metric v1.21.0
+	go.opentelemetry.io/otel/sdk/metric v1.24.0
 	google.golang.org/grpc v1.61.1
 )
 
