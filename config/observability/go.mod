@@ -8,7 +8,7 @@ require (
 	github.com/bloominlabs/baseplate-go/semconv v0.0.0-20231223082533-1ad61761104c
 	github.com/grafana/otel-profiling-go v0.5.1
 	github.com/grafana/pyroscope-go v1.0.4
-	github.com/rs/zerolog v1.31.0
+	github.com/rs/zerolog v1.32.0
 	go.opentelemetry.io/otel v1.24.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v0.44.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.24.0
