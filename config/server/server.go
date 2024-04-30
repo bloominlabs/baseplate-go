@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/pprof"
+	"os"
+	"os/signal"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -101,6 +103,9 @@ func (c *ServerConfig) NewServer(handler http.Handler, logger zerolog.Logger) (*
 		&server,
 		logger,
 		watcher,
+		nil,
+		nil,
+		nil,
 	}, nil
 }
 
@@ -109,6 +114,30 @@ type Server struct {
 
 	logger  zerolog.Logger
 	watcher *filesystem.CertificateWatcher
+
+	signalChannel       chan os.Signal
+	signalContext       context.Context
+	signalContextCancel context.CancelCauseFunc
+}
+
+func (c *Server) ListenAndRegisterSignalHandler(ctx context.Context) error {
+	c.signalChannel = make(chan os.Signal, 1)
+	c.signalContext, c.signalContextCancel = context.WithCancelCause(ctx)
+
+	signal.Notify(c.signalChannel, os.Interrupt)
+	go func() {
+		select {
+		case <-c.signalChannel:
+		case <-c.signalContext.Done():
+		}
+		c.logger.Info().Msg("received signal. gracefully shutting down")
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		c.Shutdown(ctx)
+		cancel()
+	}()
+
+	return c.Listen()
+
 }
 
 func (c *Server) Listen() error {
@@ -123,6 +152,10 @@ func (c *Server) Listen() error {
 func (c *Server) Shutdown(ctx context.Context) error {
 	if c.watcher != nil {
 		return c.watcher.Stop()
+	}
+
+	if c.signalContextCancel != nil {
+		c.signalContextCancel(fmt.Errorf("server.Shutdown() was run"))
 	}
 
 	return c.Server.Shutdown(ctx)
