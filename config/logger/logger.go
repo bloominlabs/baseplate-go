@@ -17,9 +17,8 @@ type OpenTelemetryHook struct{}
 func (h OpenTelemetryHook) Run(e *zerolog.Event, level zerolog.Level, msg string) {
 	ctx := e.GetCtx()
 	span := trace.SpanFromContext(ctx)
-	if span.SpanContext().HasSpanID() || span.SpanContext().HasTraceID() {
+	if span.SpanContext().IsValid() {
 		e.Str("traceID", span.SpanContext().TraceID().String())
-		e.Str("spanID", span.SpanContext().SpanID().String())
 
 		switch level {
 		case zerolog.ErrorLevel, zerolog.PanicLevel:

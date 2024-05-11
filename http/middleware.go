@@ -15,14 +15,12 @@ import (
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/justinas/alice"
 	"github.com/rs/cors"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/hlog"
 	"github.com/rs/zerolog/log"
 	"github.com/sethvargo/go-limiter/httplimit"
 	"github.com/sethvargo/go-limiter/memorystore"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/propagation"
-	"go.opentelemetry.io/otel/trace"
 )
 
 // CustomClaims contains custom data we want from the token.
@@ -251,21 +249,6 @@ func NomadJWTMiddleware(nomadURL string, audience []string, opts ...jwtmiddlewar
 	}, opts...)
 }
 
-// RequestHandler adds the trace id as a field to the context's logger
-// using fieldKey as field key.
-func TraceIDHandler(fieldKey string) func(next http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			span := trace.SpanFromContext(r.Context())
-			log := hlog.FromRequest(r)
-			log.UpdateContext(func(c zerolog.Context) zerolog.Context {
-				return c.Str("traceID", span.SpanContext().TraceID().String())
-			})
-			next.ServeHTTP(w, r)
-		})
-	}
-}
-
 // Setup
 // [github.com/rs/zerolog/hlog](https://github.com/rs/zerolog#integration-with-nethttp)
 // integration. Must be called after 'OTLPHandler'.
@@ -273,8 +256,6 @@ func HlogHandler(h http.Handler) http.Handler {
 	c := alice.New()
 	// Install the logger handler with default output on the console
 	c = c.Append(hlog.NewHandler(log.Logger))
-
-	c = c.Append(TraceIDHandler("traceID"))
 
 	// Install some provided extra handler to set some request's context fields.
 	// Thanks to that handler, all our logs will come with some prepopulated fields.
