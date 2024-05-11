@@ -23,8 +23,9 @@ func (h OpenTelemetryHook) Run(e *zerolog.Event, level zerolog.Level, msg string
 		switch level {
 		case zerolog.ErrorLevel, zerolog.PanicLevel:
 			span.RecordError(fmt.Errorf(msg))
+		case zerolog.TraceLevel:
 		default:
-			span.AddEvent(msg)
+			span.AddEvent(fmt.Sprintf("%s: %s", level.String(), msg))
 		}
 	}
 }
