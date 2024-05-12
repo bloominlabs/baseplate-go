@@ -12,6 +12,9 @@ import (
 	"github.com/bloominlabs/baseplate-go/config/env"
 )
 
+type UserIDKey struct{}
+type ServerIDKey struct{}
+
 type OpenTelemetryHook struct{}
 
 func (h OpenTelemetryHook) Run(e *zerolog.Event, level zerolog.Level, msg string) {
@@ -27,6 +30,18 @@ func (h OpenTelemetryHook) Run(e *zerolog.Event, level zerolog.Level, msg string
 		default:
 			span.AddEvent(fmt.Sprintf("%s: %s", level.String(), msg))
 		}
+	}
+}
+
+type UserInformationHook struct{}
+
+func (h UserInformationHook) Run(e *zerolog.Event, level zerolog.Level, msg string) {
+	ctx := e.GetCtx()
+	if userID, ok := ctx.Value(UserIDKey{}).(string); ok {
+		e.Str("userID", userID)
+	}
+	if serverID, ok := ctx.Value(ServerIDKey{}).(string); ok {
+		e.Str("serverID", serverID)
 	}
 }
 
@@ -59,7 +74,20 @@ func (c *LoggerConfig) GetLogger() (*zerolog.Logger, error) {
 	if err != nil {
 		return nil, err
 	}
-	logger := zerolog.New(os.Stderr).With().Timestamp().Caller().Logger().Hook(OpenTelemetryHook{}).Level(lvl)
+
+	userID := env.GetEnvStrDefault("NOMAD_META_user_id", "")
+	serverID := env.GetEnvStrDefault("NOMAD_META_server_id", "")
+
+	loggerConstructor := zerolog.New(os.Stderr).With().Timestamp().Caller()
+
+	if userID != "" {
+		loggerConstructor = loggerConstructor.Str("userId", userID)
+	}
+	if serverID != "" {
+		loggerConstructor = loggerConstructor.Str("serverId", serverID)
+	}
+
+	logger := loggerConstructor.Logger().Hook(UserInformationHook{}).Hook(OpenTelemetryHook{}).Level(lvl)
 
 	return &logger, nil
 }
