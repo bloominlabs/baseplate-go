@@ -1,0 +1,27 @@
+VERSION 0.8
+
+FROM golang:1.22
+WORKDIR /logging-example
+
+deps:
+  COPY go.mod go.sum ./
+
+  COPY --dir ../../../baseplate-go+artifact-config/config ../../
+  COPY --dir ../../../baseplate-go+artifact-http/http ../../
+
+  RUN go mod download
+  # Output these back in case go mod download changes them.
+  SAVE ARTIFACT go.mod AS LOCAL go.mod
+  SAVE ARTIFACT go.sum AS LOCAL go.sum
+
+build:
+  FROM +deps
+  COPY *.go .
+  RUN CGO_ENABLED=0 go build -trimpath -ldflags='-s -w -extldflags "-static"' -o bin/logging-example github.com/bloominlabs/hostin-proj/logging-example
+  SAVE ARTIFACT bin/logging-example /logging-example AS LOCAL bin/logging-example
+
+docker:
+  FROM gcr.io/distroless/base-debian11:debug-nonroot
+  COPY +build/logging-example /usr/bin/logging-example
+  ENTRYPOINT ["/usr/bin/logging-example"]
+  SAVE IMAGE --push ghcr.io/bloominlabs/logging-example:latest

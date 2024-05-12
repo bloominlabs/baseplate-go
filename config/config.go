@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/pelletier/go-toml/v2"
-	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 
 	"github.com/bloominlabs/baseplate-go/config/filesystem"
 )
@@ -42,7 +42,7 @@ func ParseConfigFileParameter(args []string) (configFile string) {
 	return
 }
 
-func ParseConfiguration(cfg Configuration, logger zerolog.Logger) (*filesystem.Watcher, error) {
+func ParseConfiguration(cfg Configuration) (*filesystem.Watcher, error) {
 	configFile := ParseConfigFileParameter(os.Args[1:])
 
 	var watcher *filesystem.Watcher
@@ -51,12 +51,12 @@ func ParseConfiguration(cfg Configuration, logger zerolog.Logger) (*filesystem.W
 	// It needs to be called before parsing the config file!
 	cfg.RegisterFlags(flag.CommandLine)
 	if configFile != "" {
-		err := DecodeConfiguration(configFile, cfg, logger)
+		err := DecodeConfiguration(configFile, cfg)
 		if err != nil {
 			return watcher, fmt.Errorf("failed to read %s: %w", configFile, err)
 		}
 
-		w, err := filesystem.NewRateLimitedFileWatcher([]string{configFile}, logger, time.Second*5)
+		w, err := filesystem.NewRateLimitedFileWatcher([]string{configFile}, log.Logger, time.Second*5)
 		if err != nil {
 			return watcher, fmt.Errorf("failed to create file watcher for %s: %w", configFile, err)
 		}
@@ -69,10 +69,10 @@ func ParseConfiguration(cfg Configuration, logger zerolog.Logger) (*filesystem.W
 	return watcher, nil
 }
 
-func DecodeConfiguration(file string, config interface{}, logger zerolog.Logger) error {
+func DecodeConfiguration(file string, config interface{}) error {
 	out, err := os.ReadFile(file)
 	if err != nil {
-		logger.Fatal().Err(err).Str("configFile", file).Msg("failed to read configuration file")
+		return fmt.Errorf("failed to read configuration file %s: %w", file, err)
 	}
 
 	err = toml.NewDecoder(bytes.NewReader(out)).DisallowUnknownFields().Decode(config)

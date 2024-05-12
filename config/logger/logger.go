@@ -69,25 +69,24 @@ func (c *LoggerConfig) Merge(o *LoggerConfig) error {
 	return nil
 }
 
-func (c *LoggerConfig) GetLogger() (*zerolog.Logger, error) {
-	lvl, err := zerolog.ParseLevel(c.LogLevel)
-	if err != nil {
-		return nil, err
-	}
+func (c *LoggerConfig) GetLogger() zerolog.Logger {
+	logger := zerolog.New(os.Stderr).With().Timestamp().Caller().Logger().Level(zerolog.DebugLevel)
 
 	userID := env.GetEnvStrDefault("NOMAD_META_user_id", "")
 	serverID := env.GetEnvStrDefault("NOMAD_META_server_id", "")
 
-	loggerConstructor := zerolog.New(os.Stderr).With().Timestamp().Caller()
-
 	if userID != "" {
-		loggerConstructor = loggerConstructor.Str("userId", userID)
+		logger = logger.With().Str("userId", userID).Logger()
 	}
 	if serverID != "" {
-		loggerConstructor = loggerConstructor.Str("serverId", serverID)
+		logger = logger.With().Str("serverId", serverID).Logger()
 	}
 
-	logger := loggerConstructor.Logger().Hook(UserInformationHook{}).Hook(OpenTelemetryHook{}).Level(lvl)
-
-	return &logger, nil
+	logger = logger.Hook(UserInformationHook{}).Hook(OpenTelemetryHook{})
+	if lvl, err := zerolog.ParseLevel(c.LogLevel); err == nil {
+		return logger.Level(lvl)
+	} else {
+		logger.Error().Err(err).Msg("failed to parse log level")
+		return logger
+	}
 }
