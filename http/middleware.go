@@ -260,7 +260,7 @@ func HlogHandler(h http.Handler) http.Handler {
 	// Install some provided extra handler to set some request's context fields.
 	// Thanks to that handler, all our logs will come with some prepopulated fields.
 	c = c.Append(hlog.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
-		hlog.FromRequest(r).Info().
+		hlog.FromRequest(r).Info().Ctx(r.Context()).
 			Str("method", r.Method).
 			Stringer("url", r.URL).
 			Int("status", status).
