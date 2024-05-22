@@ -109,7 +109,7 @@ func InitMetricsProvider(logger zerolog.Logger, addr string, credentials *creden
 		defer cancel()
 		err := provider.Shutdown(ctx)
 		if err != nil {
-			log.Fatal().Err(err).Msg("failed to shutdown metric provider")
+			log.Error().Err(err).Msg("failed to shutdown metric provider")
 		}
 	}, nil
 }
