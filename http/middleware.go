@@ -192,13 +192,18 @@ func RatelimiterMiddleware(opts ...RatelimiterOption) func(http.Handler) http.Ha
 	return middleware.Handle
 }
 
-func OTLPHandler(serviceName string) func(http.Handler) http.Handler {
+func OTLPHandler(serviceName string, options ...otelhttp.Option) func(http.Handler) http.Handler {
+	opts := []otelhttp.Option{
+		otelhttp.WithMessageEvents(otelhttp.ReadEvents, otelhttp.WriteEvents),
+		otelhttp.WithPropagators(propagation.TraceContext{}),
+	}
+	opts = append(opts, options...)
+
 	return func(h http.Handler) http.Handler {
 		return otelhttp.NewHandler(
 			h,
 			serviceName,
-			otelhttp.WithMessageEvents(otelhttp.ReadEvents, otelhttp.WriteEvents),
-			otelhttp.WithPropagators(propagation.TraceContext{}),
+			opts...,
 		)
 	}
 }
