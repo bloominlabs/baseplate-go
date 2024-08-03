@@ -47,7 +47,7 @@ type FileWatcherEvent struct {
 	Filenames []string
 }
 
-//NewFileWatcher create a file watcher that will watch all the files/folders from configFiles
+// NewFileWatcher create a file watcher that will watch all the files/folders from configFiles
 // if success a fileWatcher will be returned and a nil error
 // otherwise an error and a nil fileWatcher are returned
 func NewFileWatcher(configFiles []string, logger zerolog.Logger) (Watcher, error) {
@@ -64,7 +64,12 @@ func NewFileWatcher(configFiles []string, logger zerolog.Logger) (Watcher, error
 		done:             make(chan interface{}),
 	}
 	for _, f := range configFiles {
-		err = w.Add(f)
+		abs, err := filepath.Abs(f)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get abs path for %s: %w", f, err)
+		}
+
+		err = w.Add(abs)
 		if err != nil {
 			return nil, fmt.Errorf("error adding file %q: %w", f, err)
 		}
