@@ -38,6 +38,7 @@ func CreatePrefix(prefix string) (string, string) {
 type DigitalOceanSpacesConfig struct {
 	sync.RWMutex
 
+	URL             string `toml:"url"`
 	Endpoint        string `toml:"endpoint"`
 	AccessKeyID     string `toml:"access_key_id"`
 	SecretAccessKey string `toml:"secret_access_key"`
@@ -109,7 +110,7 @@ func (c *DigitalOceanSpacesConfig) RegisterFlags(f *flag.FlagSet, prefix string)
 		&c.Endpoint,
 		fmt.Sprintf("%s.endpoint", prefix),
 		env.GetEnvStrDefault(fmt.Sprintf("%s_ENDPOINT", upperPrefix), "digitaloceanspaces.com"),
-		"endpoint to use for requests",
+		"base endpoint to use for requests. this will be combined with region to form the full URL",
 	)
 	f.StringVar(
 		&c.AccessKeyID,
@@ -122,6 +123,12 @@ func (c *DigitalOceanSpacesConfig) RegisterFlags(f *flag.FlagSet, prefix string)
 		fmt.Sprintf("%s.secret-access-key", prefix),
 		env.GetEnvStrDefault(fmt.Sprintf("%s_SECRET_ACCESS_KEY", upperPrefix), env.GetEnvStrDefault("AWS_SECRET_ACCESS_KEY", env.GetEnvStrDefault("SPACES_SECRET_ACCESS_KEY", ""))),
 		"Spaces Secret Access Key for authentication",
+	)
+	f.StringVar(
+		&c.URL,
+		fmt.Sprintf("%s.url", prefix),
+		env.GetEnvStrDefault(fmt.Sprintf("%s_URL", upperPrefix), ""),
+		"can be used in place of 'region' + 'endpoint' to set the s3 url",
 	)
 	// see the struct for why this is commented out
 	// f.StringVar(
@@ -175,6 +182,13 @@ func (c *DigitalOceanSpacesConfig) Validate() error {
 		)
 	}
 
+	if c.URL == "" && c.Endpoint == "" {
+		multierror.Append(
+			validationErrors,
+			fmt.Errorf("'url' or 'endpoint' must be specified"),
+		)
+	}
+
 	return validationErrors
 }
 
@@ -182,8 +196,13 @@ func (c *DigitalOceanSpacesConfig) CreateClient() (*s3.Client, error) {
 	c.RLock()
 	// setup s3 sdk for use with digitalocean + opentelemetry
 	resolver := aws.EndpointResolverWithOptionsFunc(func(service, awsRegion string, options ...interface{}) (aws.Endpoint, error) {
+		url := fmt.Sprintf("https://%s.%s", c.Region, c.Endpoint)
+		if c.URL != "" {
+			url = c.URL
+		}
+
 		return aws.Endpoint{
-			URL: fmt.Sprintf("https://%s.%s", c.Region, c.Endpoint),
+			URL: url,
 		}, nil
 	})
 
@@ -193,7 +212,7 @@ func (c *DigitalOceanSpacesConfig) CreateClient() (*s3.Client, error) {
 		context.Background(),
 		awsconfig.WithHTTPClient(client),
 		awsconfig.WithEndpointResolverWithOptions(resolver),
-		awsconfig.WithDefaultRegion(c.Region),
+		awsconfig.WithRegion(c.Region),
 		awsconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(c.AccessKeyID, c.SecretAccessKey, "")),
 	)
 	c.RUnlock()
