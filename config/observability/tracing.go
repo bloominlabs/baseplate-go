@@ -41,7 +41,7 @@ func InitTraceProvider(logger zerolog.Logger, serviceName string, addr string, c
 		// probably connect directly to the service through dns
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
-		conn, err := grpc.DialContext(ctx, addr, grpc.WithTransportCredentials(*creds), grpc.FailOnNonTempDialError(true), grpc.WithBlock())
+		conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(*creds))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create gRPC connection to collector: %w", err)
 		}

@@ -59,7 +59,6 @@ func (c *PyroscopeConfig) Start(ctx context.Context, serviceName string) error {
 
 			UploadRate: time.Second * 60,
 		})
-
 		if err != nil {
 			return err
 		}
@@ -132,7 +131,7 @@ func (t *TelemetryConfig) Merge(o *TelemetryConfig) error {
 
 	err := t.Pyroscope.Stop()
 	if err != nil {
-		fmt.Errorf("failed to stop pyroscope: %w", err)
+		return fmt.Errorf("failed to stop pyroscope: %w", err)
 	}
 
 	err = t.Pyroscope.Start(context.Background(), t.ServiceName)

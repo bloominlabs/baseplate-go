@@ -46,7 +46,7 @@ func InitMetricsProvider(logger zerolog.Logger, addr string, credentials *creden
 		// probably connect directly to the service through dns
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
-		con, err := grpc.DialContext(ctx, addr, grpc.WithTransportCredentials(*credentials), grpc.FailOnNonTempDialError(true), grpc.WithBlock())
+		con, err := grpc.NewClient(addr, grpc.WithTransportCredentials(*credentials))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create gRPC connection to collector: %w", err)
 		}
