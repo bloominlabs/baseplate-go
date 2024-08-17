@@ -9,9 +9,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/99designs/gqlgen/graphql/handler/transport"
 	jwtmiddleware "github.com/auth0/go-jwt-middleware/v2"
 	"github.com/auth0/go-jwt-middleware/v2/jwks"
 	"github.com/auth0/go-jwt-middleware/v2/validator"
+	"github.com/gorilla/websocket"
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/justinas/alice"
 	"github.com/rs/cors"
@@ -185,7 +187,6 @@ func RatelimiterMiddleware(opts ...RatelimiterOption) func(http.Handler) http.Ha
 
 	middleware, err := httplimit.NewMiddleware(store, config.KeyFunc)
 	if err != nil {
-
 		log.Fatal().Err(err).Msg("failed to initialize middleware")
 	}
 
@@ -287,4 +288,56 @@ func CorsMiddleware(next http.Handler) http.Handler {
 		AllowCredentials: true,
 		Debug:            false,
 	}).Handler(next)
+}
+
+func CreateWebsocketTransport(v validator.Validator, callback func(context.Context, *validator.ValidatedClaims) (context.Context, error)) transport.Websocket {
+	return transport.Websocket{
+		InitFunc: func(ctx context.Context, initPayload transport.InitPayload) (context.Context, *transport.InitPayload, error) {
+			logger := log.Ctx(ctx)
+			authorization := initPayload.Authorization()
+			// HTTP Authorization headers are in the format: <Scheme>[SPACE]<Value>
+			// Ref. https://tools.ietf.org/html/rfc7236#section-3
+			parts := strings.Split(authorization, " ")
+
+			// Authorization Header is invalid if containing 1 or 0 parts, e.g.:
+			// "" || "<Scheme><Value>" || "<Scheme>" || "<Value>"
+			if len(parts) > 1 {
+				scheme := parts[0]
+				// Everything after "<Scheme>" is "<Value>", trimmed
+				value := strings.TrimSpace(strings.Join(parts[1:], " "))
+
+				// <Scheme> must be "Bearer"
+				if strings.ToLower(scheme) == "bearer" {
+					// Since Bearer tokens shouldn't contain spaces (rfc6750#section-2.1)
+					// "value" is tokenized, only the first item is used
+					token := strings.TrimSpace(strings.Split(value, " ")[0])
+					claims, err := v.ValidateToken(ctx, token)
+					if err != nil {
+						logger.Error().Ctx(ctx).Err(err).Msg("failed to validate websocket token")
+						return nil, nil, fmt.Errorf("failed to validate JWT. please verify you're logged in")
+					}
+					validatedClaims, ok := claims.(*validator.ValidatedClaims)
+					if !ok {
+						logger.Error().Ctx(ctx).Interface("claims", claims).Msg("failed to validate JWT. could not parse validatedClaims")
+						return nil, nil, fmt.Errorf("failed to validate JWT. please verify you're logged in")
+					}
+					if callback != nil {
+						ctx, err = callback(ctx, validatedClaims)
+						fmt.Println(ctx, err)
+						return ctx, nil, err
+					}
+
+					return ctx, nil, nil
+				}
+			}
+
+			return nil, nil, fmt.Errorf("failed to authenticate you. couldn't find a JWT in the Authorization header using the 'Bearer' scheme")
+		},
+		KeepAlivePingInterval: 10 * time.Second,
+		Upgrader: websocket.Upgrader{
+			CheckOrigin: func(r *http.Request) bool {
+				return true
+			},
+		},
+	}
 }
