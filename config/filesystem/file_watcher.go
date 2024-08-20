@@ -3,6 +3,7 @@ package filesystem
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sync"
@@ -33,7 +34,7 @@ type fileWatcher struct {
 	done             chan interface{}
 	stopOnce         sync.Once
 
-	//eventsCh Channel where an event will be emitted when a file change is detected
+	// eventsCh Channel where an event will be emitted when a file change is detected
 	// a call to Start is needed before any event is emitted
 	// after a Call to Stop succeed, the channel will be closed
 	eventsCh chan *FileWatcherEvent
@@ -203,7 +204,9 @@ func (w *fileWatcher) handleEvent(ctx context.Context, event fsnotify.Event) err
 	filename := filepath.Clean(event.Name)
 	configFile, basename, ok := w.isWatched(filename)
 	if !ok {
-		return fmt.Errorf("file %s is not watched", event.Name)
+		return filepath.Walk(filename, func(path string, info fs.FileInfo, err error) error {
+			return w.Add(path)
+		})
 	}
 
 	// we only want to update mod time and re-add if the event is on the watched file itself
@@ -215,6 +218,7 @@ func (w *fileWatcher) handleEvent(ctx context.Context, event fsnotify.Event) err
 			w.reconcile(ctx)
 		}
 	}
+
 	if isCreateEvent(event) || isWriteEvent(event) || isRenameEvent(event) {
 		w.logger.Trace().Str("filename", event.Name).Interface("OP", event.Op).Msg("call the handler")
 		select {
@@ -222,7 +226,6 @@ func (w *fileWatcher) handleEvent(ctx context.Context, event fsnotify.Event) err
 		case <-ctx.Done():
 			return ctx.Err()
 		}
-
 	}
 	return nil
 }
