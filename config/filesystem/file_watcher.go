@@ -205,7 +205,10 @@ func (w *fileWatcher) handleEvent(ctx context.Context, event fsnotify.Event) err
 	configFile, basename, ok := w.isWatched(filename)
 	if !ok {
 		return filepath.Walk(filename, func(path string, info fs.FileInfo, err error) error {
-			return w.Add(path)
+			if info.IsDir() {
+				return w.Add(path)
+			}
+			return nil
 		})
 	}
 
