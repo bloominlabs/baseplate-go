@@ -23,6 +23,10 @@ import (
 
 var isPrefixCompatible *regexp.Regexp = regexp.MustCompile(`^[A-Za-z0-9.]+$`)
 
+const (
+	DEFAULT_ENDPOINT_SUFFIX = "digitaloceanspaces.com"
+)
+
 // create a (flag comptable, environment variable compatible), respectively,
 // prefix. Useful for derived configurations that want to register their own
 // flags for custom buckets. DO NOT use when running the 'RegisterFlags'
@@ -38,13 +42,14 @@ func CreatePrefix(prefix string) (string, string) {
 type DigitalOceanSpacesConfig struct {
 	sync.RWMutex
 
-	URL             string `toml:"url"`
-	Endpoint        string `toml:"endpoint"`
-	AccessKeyID     string `toml:"access_key_id"`
-	SecretAccessKey string `toml:"secret_access_key"`
-	Region          string `toml:"region"`
-	UsePathStyle    bool   `toml:"use_path_style"`
-	TLSSkipVerify   bool   `toml:"tls_skip_verify"`
+	/// WARNING: use `.Endpoint()` instead for better default conditions
+	InternalEndpoint string `toml:"endpoint"`
+	AccessKeyID      string `toml:"access_key_id"`
+	SecretAccessKey  string `toml:"secret_access_key"`
+	Region           string `toml:"region"`
+	UsePathStyle     bool   `toml:"use_path_style"`
+	UseHTTPS         bool   `toml:"use_https"`
+	TLSSkipVerify    bool   `toml:"tls_skip_verify"`
 
 	prefix string
 
@@ -107,9 +112,9 @@ func (c *DigitalOceanSpacesConfig) RegisterFlags(f *flag.FlagSet, prefix string)
 		"use aws path style when making requests",
 	)
 	f.StringVar(
-		&c.Endpoint,
+		&c.InternalEndpoint,
 		fmt.Sprintf("%s.endpoint", prefix),
-		env.GetEnvStrDefault(fmt.Sprintf("%s_ENDPOINT", upperPrefix), "digitaloceanspaces.com"),
+		env.GetEnvStrDefault(fmt.Sprintf("%s_ENDPOINT", upperPrefix), ""),
 		"base endpoint to use for requests. this will be combined with region to form the full URL",
 	)
 	f.StringVar(
@@ -123,12 +128,6 @@ func (c *DigitalOceanSpacesConfig) RegisterFlags(f *flag.FlagSet, prefix string)
 		fmt.Sprintf("%s.secret-access-key", prefix),
 		env.GetEnvStrDefault(fmt.Sprintf("%s_SECRET_ACCESS_KEY", upperPrefix), env.GetEnvStrDefault("AWS_SECRET_ACCESS_KEY", env.GetEnvStrDefault("SPACES_SECRET_ACCESS_KEY", ""))),
 		"Spaces Secret Access Key for authentication",
-	)
-	f.StringVar(
-		&c.URL,
-		fmt.Sprintf("%s.url", prefix),
-		env.GetEnvStrDefault(fmt.Sprintf("%s_URL", upperPrefix), ""),
-		"can be used in place of 'region' + 'endpoint' to set the s3 url",
 	)
 	// see the struct for why this is commented out
 	// f.StringVar(
@@ -147,8 +146,8 @@ func (c *DigitalOceanSpacesConfig) Merge(other *DigitalOceanSpacesConfig) error 
 	if other.Region != "" {
 		c.Region = other.Region
 	}
-	if other.Endpoint != "" {
-		c.Endpoint = other.Endpoint
+	if other.InternalEndpoint != "" {
+		c.InternalEndpoint = other.InternalEndpoint
 	}
 	c.AccessKeyID = other.AccessKeyID
 	c.SecretAccessKey = other.SecretAccessKey
@@ -182,13 +181,6 @@ func (c *DigitalOceanSpacesConfig) Validate() error {
 		)
 	}
 
-	if c.URL == "" && c.Endpoint == "" {
-		multierror.Append(
-			validationErrors,
-			fmt.Errorf("'url' or 'endpoint' must be specified"),
-		)
-	}
-
 	return validationErrors
 }
 
@@ -196,10 +188,12 @@ func (c *DigitalOceanSpacesConfig) CreateClient() (*s3.Client, error) {
 	c.RLock()
 	// setup s3 sdk for use with digitalocean + opentelemetry
 	resolver := aws.EndpointResolverWithOptionsFunc(func(service, awsRegion string, options ...interface{}) (aws.Endpoint, error) {
-		url := fmt.Sprintf("https://%s.%s", c.Region, c.Endpoint)
-		if c.URL != "" {
-			url = c.URL
+		protocol := "https"
+		if !c.UseHTTPS {
+			protocol = "http"
 		}
+		endpoint := c.Endpoint()
+		url := fmt.Sprintf("%s://%s", protocol, endpoint)
 
 		return aws.Endpoint{
 			URL: url,
@@ -244,4 +238,13 @@ func (c *DigitalOceanSpacesConfig) GetClient() (s3.Client, error) {
 	c.RLock()
 	defer c.RUnlock()
 	return *c.client, nil
+}
+
+func (c *DigitalOceanSpacesConfig) Endpoint() string {
+	endpoint := c.Region + "." + DEFAULT_ENDPOINT_SUFFIX
+	if c.InternalEndpoint != "" {
+		endpoint = c.InternalEndpoint
+	}
+
+	return endpoint
 }
