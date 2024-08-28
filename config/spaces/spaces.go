@@ -129,6 +129,12 @@ func (c *DigitalOceanSpacesConfig) RegisterFlags(f *flag.FlagSet, prefix string)
 		env.GetEnvStrDefault(fmt.Sprintf("%s_SECRET_ACCESS_KEY", upperPrefix), env.GetEnvStrDefault("AWS_SECRET_ACCESS_KEY", env.GetEnvStrDefault("SPACES_SECRET_ACCESS_KEY", ""))),
 		"Spaces Secret Access Key for authentication",
 	)
+	f.BoolVar(
+		&c.UseHTTPS,
+		fmt.Sprintf("%s.use-https", prefix),
+		env.GetEnvBoolDefault(fmt.Sprintf("%s_USE_HTTPS", upperPrefix), true),
+		"should HTTPS be used when connecting to the endpoint",
+	)
 	// see the struct for why this is commented out
 	// f.StringVar(
 	// 	&c.BucketName,
