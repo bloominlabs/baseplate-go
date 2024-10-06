@@ -1,6 +1,8 @@
 module github.com/bloominlabs/baseplate-go/config/tailscale
 
-go 1.20
+go 1.22.0
+
+toolchain go1.22.7
 
 replace github.com/bloominlabs/baseplate-go/config/env => ../env/
 

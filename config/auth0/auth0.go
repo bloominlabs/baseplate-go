@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"runtime"
 	"sync"
 	"time"
 
@@ -86,6 +87,9 @@ func defaultHttpClient() *http.Client {
 
 func (c *Auth0Config) CreateClient() (*management.Management, error) {
 	client := defaultHttpClient()
+	runtime.SetFinalizer(client, func(client *http.Client) {
+		client.CloseIdleConnections()
+	})
 	c.RLock()
 	defer c.RUnlock()
 	if c.Token == "" {

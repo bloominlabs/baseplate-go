@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"flag"
 	"net/http"
+	"runtime"
 	"sync"
 	"time"
 
@@ -82,6 +83,9 @@ func (c *NomadConfig) GetClient() (api.Client, error) {
 		if err != nil {
 			return *client, err
 		}
+		runtime.SetFinalizer(c.client, func(client *api.Client) {
+			client.Close()
+		})
 		c.Lock()
 		c.client = client
 		c.Unlock()
