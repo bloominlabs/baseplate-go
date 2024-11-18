@@ -12,9 +12,9 @@ import (
 type ConsulConfig struct {
 	sync.RWMutex
 
-	Address string
-	Token   string
-	SSL     bool
+	Address string `toml:"address"`
+	Token   string `toml:"token"`
+	SSL     bool   `toml:"use_ssl"`
 	client  *api.Client
 }
 
@@ -50,20 +50,20 @@ func (c *ConsulConfig) CreateClient() (*api.Client, error) {
 	return api.NewClient(config)
 }
 
-func (c *ConsulConfig) GetClient() (api.Client, error) {
+func (c *ConsulConfig) GetClient() (*api.Client, error) {
 	if c.client == nil {
 		client, err := c.CreateClient()
 		if err != nil {
-			return *client, err
+			return client, err
 		}
 		c.Lock()
 		c.client = client
 		c.Unlock()
 
-		return *client, err
+		return client, err
 	}
 
 	c.RLock()
 	defer c.RUnlock()
-	return *c.client, nil
+	return c.client, nil
 }
