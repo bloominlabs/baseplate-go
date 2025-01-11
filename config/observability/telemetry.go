@@ -264,7 +264,8 @@ func (t *TelemetryConfig) InitializeTelemetry(ctx context.Context, serviceName s
 	log.Info().Str("OTLPAddr", t.OTLPAddr).Str("type", "tracing").Msg("initializing provider")
 	tracingCleanup, err := InitTraceProvider(logger, serviceName, t.OTLPAddr, creds, t.Pyroscope, traceOpts...)
 	if err != nil {
-		log.Fatal().Err(err).Str("OTLPAddr", t.OTLPAddr).Str("type", "tracing").Msg("failed to intialize provider")
+		log.Error().Err(err).Str("OTLPAddr", t.OTLPAddr).Str("type", "tracing").Msg("failed to intialize provider")
+		return fmt.Errorf("failed to initialize trace provider: %w", err)
 	}
 	t.tracingCleanup = &tracingCleanup
 	log.Debug().Str("OTLPAddr", t.OTLPAddr).Str("type", "tracing").Msg("initialized provider")
@@ -272,7 +273,8 @@ func (t *TelemetryConfig) InitializeTelemetry(ctx context.Context, serviceName s
 	log.Info().Str("url", t.Pyroscope.URL).Str("type", "profiling").Msg("initializing provider")
 	err = t.Pyroscope.Start(ctx, t.ServiceName)
 	if err != nil {
-		log.Fatal().Err(err).Str("url", t.Pyroscope.URL).Str("type", "profiling").Msg("failed to intialize provider")
+		log.Error().Err(err).Str("url", t.Pyroscope.URL).Str("type", "profiling").Msg("failed to intialize provider")
+		return fmt.Errorf("failed to initialize profiling provider: %w", err)
 	}
 	log.Info().Str("url", t.Pyroscope.URL).Str("type", "profiling").Msg("done initializing provider")
 	profilerCleanup := func() {

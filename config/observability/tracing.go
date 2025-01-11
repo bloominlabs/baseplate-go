@@ -95,7 +95,7 @@ func InitTraceProvider(logger zerolog.Logger, serviceName string, addr string, c
 		defer cancel()
 
 		if err := tracerProvider.Shutdown(ctx); err != nil {
-			log.Fatal().Err(err).Msg("failed to shutdown TracerProvider")
+			log.Error().Err(err).Msg("failed to shutdown TracerProvider")
 		}
 	}, nil
 }
