@@ -2,13 +2,10 @@ package s3
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"flag"
 	"fmt"
-	"net/http"
 	"regexp"
-	"runtime"
 	"strings"
 	"sync"
 
@@ -16,8 +13,10 @@ import (
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/hashicorp/go-cleanhttp"
+	"github.com/aws/smithy-go/metrics/smithyotelmetrics"
+	"github.com/aws/smithy-go/tracing/smithyoteltracing"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/aws/aws-sdk-go-v2/otelaws"
+	"go.opentelemetry.io/otel"
 
 	"github.com/bloominlabs/baseplate-go/config/env"
 )
@@ -176,15 +175,8 @@ func (c *S3Config) Validate() error {
 
 func (c *S3Config) CreateClient() (*s3.Client, error) {
 	c.RLock()
-	client := cleanhttp.DefaultPooledClient()
-	runtime.SetFinalizer(client, func(client *http.Client) {
-		client.CloseIdleConnections()
-	})
-
-	client.Transport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: c.TLSSkipVerify}
 	s3config, err := awsconfig.LoadDefaultConfig(
 		context.Background(),
-		awsconfig.WithHTTPClient(client),
 		awsconfig.WithRegion(c.Region),
 		awsconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(c.AccessKeyID, c.SecretAccessKey, "")),
 	)
@@ -198,6 +190,9 @@ func (c *S3Config) CreateClient() (*s3.Client, error) {
 	return s3.NewFromConfig(s3config, func(o *s3.Options) {
 		o.UsePathStyle = c.UsePathStyle
 		o.BaseEndpoint = aws.String(c.Endpoint)
+		// https://github.com/aws/aws-sdk-go-v2/discussions/2810
+		o.MeterProvider = smithyotelmetrics.Adapt(otel.GetMeterProvider())
+		o.TracerProvider = smithyoteltracing.Adapt(otel.GetTracerProvider())
 	}), nil
 }
 
