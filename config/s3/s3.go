@@ -191,8 +191,8 @@ func (c *S3Config) CreateClient() (*s3.Client, error) {
 		o.UsePathStyle = c.UsePathStyle
 		o.BaseEndpoint = aws.String(c.Endpoint)
 		// https://github.com/aws/aws-sdk-go-v2/discussions/2810
-		o.MeterProvider = smithyotelmetrics.Adapt(otel.GetMeterProvider())
-		o.TracerProvider = smithyoteltracing.Adapt(otel.GetTracerProvider())
+		// o.MeterProvider = smithyotelmetrics.Adapt(otel.GetMeterProvider())
+		// o.TracerProvider = smithyoteltracing.Adapt(otel.GetTracerProvider())
 	}), nil
 }
 
