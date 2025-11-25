@@ -44,10 +44,6 @@ github.com/aws/aws-sdk-go-v2/service/sts v1.40.2 h1:HK5ON3KmQV2HcAunnx4sKLB9aPf3
 github.com/aws/aws-sdk-go-v2/service/sts v1.40.2/go.mod h1:E19xDjpzPZC7LS2knI9E6BaRFDK43Eul7vd6rSq2HWk=
 github.com/aws/smithy-go v1.23.2 h1:Crv0eatJUQhaManss33hS5r40CG3ZFH+21XSkqMrIUM=
 github.com/aws/smithy-go v1.23.2/go.mod h1:LEj2LM3rBRQJxPZTB4KuzZkaZYnZPnvgIhb4pu07mx0=
-github.com/aws/smithy-go/metrics/smithyotelmetrics v1.0.9 h1:vwa1AsLGuZXURCE52vjhApH+7Zs/SeB/U6d80RnNOtQ=
-github.com/aws/smithy-go/metrics/smithyotelmetrics v1.0.9/go.mod h1:4o8QvuB68yf0xzfikfRETt77znul7CfEd4QE9K/VP3I=
-github.com/aws/smithy-go/tracing/smithyoteltracing v1.0.9 h1:4gvl7iM4h5XPJakPNPhrZU/REkoTZ9mleEzrANkBcPU=
-github.com/aws/smithy-go/tracing/smithyoteltracing v1.0.9/go.mod h1:LJ2txlD0tLrjlhPky1xKzAR6nLTSpfa7YlMJQtUNS8Q=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/go-logr/logr v1.2.2/go.mod h1:jdQByPbusPIv2/zmleS9BjJVeZ6kBagPoEUsqbVz/1A=

@@ -13,10 +13,10 @@ import (
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/aws/smithy-go/metrics/smithyotelmetrics"
-	"github.com/aws/smithy-go/tracing/smithyoteltracing"
+	// "github.com/aws/smithy-go/metrics/smithyotelmetrics"
+	// "github.com/aws/smithy-go/tracing/smithyoteltracing"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/aws/aws-sdk-go-v2/otelaws"
-	"go.opentelemetry.io/otel"
+	// "go.opentelemetry.io/otel"
 
 	"github.com/bloominlabs/baseplate-go/config/env"
 )

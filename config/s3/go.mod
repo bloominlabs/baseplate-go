@@ -9,11 +9,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.31.20
 	github.com/aws/aws-sdk-go-v2/credentials v1.18.24
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.90.2
-	github.com/aws/smithy-go/metrics/smithyotelmetrics v1.0.9
-	github.com/aws/smithy-go/tracing/smithyoteltracing v1.0.9
 	github.com/bloominlabs/baseplate-go/config/env v0.0.0-20250111040505-c8dd9084f267
 	go.opentelemetry.io/contrib/instrumentation/github.com/aws/aws-sdk-go-v2/otelaws v0.63.0
-	go.opentelemetry.io/otel v1.38.0
 )
 
 require (
@@ -38,6 +35,7 @@ require (
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
+	go.opentelemetry.io/otel v1.38.0 // indirect
 	go.opentelemetry.io/otel/metric v1.38.0 // indirect
 	go.opentelemetry.io/otel/trace v1.38.0 // indirect
 )
