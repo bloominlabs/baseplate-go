@@ -3,6 +3,7 @@ package logger
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"sync"
 
@@ -48,11 +49,13 @@ func (h UserInformationHook) Run(e *zerolog.Event, level zerolog.Level, msg stri
 type LoggerConfig struct {
 	sync.RWMutex
 
-	LogLevel string `toml:"log_level"`
+	LogLevel       string `toml:"log_level"`
+	ConsoleLogging bool   `toml:"console_logging"`
 }
 
 func (c *LoggerConfig) RegisterFlags(f *flag.FlagSet) {
 	f.StringVar(&c.LogLevel, "logger.log-level", env.GetEnvStrDefault("LOG_LEVEL", "debug"), "the log level to use for the logger")
+	f.BoolVar(&c.ConsoleLogging, "logger.console", env.GetEnvBoolDefault("CONSOLE_LOGGING", false), "use human-readable console output instead of JSON")
 }
 
 func (c *LoggerConfig) Validate() error {
@@ -65,12 +68,18 @@ func (c *LoggerConfig) Merge(o *LoggerConfig) error {
 	if o.LogLevel != "" {
 		c.LogLevel = o.LogLevel
 	}
+	c.ConsoleLogging = o.ConsoleLogging
 
 	return nil
 }
 
 func (c *LoggerConfig) GetLogger() zerolog.Logger {
-	logger := zerolog.New(os.Stderr).With().Timestamp().Caller().Logger().Level(zerolog.DebugLevel)
+	var output io.Writer = os.Stderr
+	if c.ConsoleLogging {
+		output = zerolog.ConsoleWriter{Out: os.Stderr}
+	}
+
+	logger := zerolog.New(output).With().Timestamp().Caller().Logger().Level(zerolog.DebugLevel)
 
 	userID := env.GetEnvStrDefault("NOMAD_META_user_id", "")
 	serverID := env.GetEnvStrDefault("NOMAD_META_server_id", "")
