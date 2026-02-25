@@ -4,15 +4,17 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
 	"runtime"
 	"time"
 
 	"github.com/grafana/pyroscope-go"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
+	sdklog "go.opentelemetry.io/otel/sdk/log"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -21,65 +23,30 @@ import (
 
 	"github.com/bloominlabs/baseplate-go/config/env"
 	"github.com/bloominlabs/baseplate-go/config/filesystem"
+	"github.com/bloominlabs/baseplate-go/config/slogger"
 )
 
-type PyroscopeLogger struct {
-	logger zerolog.Logger
+// pyroscopeLogger adapts slog to pyroscope's logger interface.
+type pyroscopeLogger struct {
+	logger *slog.Logger
 }
 
-func (l *PyroscopeLogger) Infof(a string, b ...interface{})  {}
-func (l *PyroscopeLogger) Debugf(a string, b ...interface{}) {}
-func (l *PyroscopeLogger) Errorf(a string, b ...interface{}) {
-	l.logger.Error().Msg(fmt.Sprintf(a, b...))
+func (l *pyroscopeLogger) Infof(a string, b ...interface{})  {}
+func (l *pyroscopeLogger) Debugf(a string, b ...interface{}) {}
+func (l *pyroscopeLogger) Errorf(a string, b ...interface{}) {
+	l.logger.Error(fmt.Sprintf(a, b...))
 }
 
+// PyroscopeConfig holds configuration for the Pyroscope continuous profiler.
 type PyroscopeConfig struct {
 	URL   string `toml:"url"`
 	Token string `toml:"token"`
 	User  string `toml:"user"`
-
-	profiler *pyroscope.Profiler
 }
 
-func (c *PyroscopeConfig) Start(ctx context.Context, serviceName string) error {
-	runtime.SetMutexProfileFraction(5)
-	runtime.SetBlockProfileRate(5)
-
-	if c.URL != "" {
-		p, err := pyroscope.Start(pyroscope.Config{
-			ApplicationName: serviceName,
-
-			// replace this with the address of pyroscope server
-			ServerAddress:     c.URL,
-			BasicAuthUser:     c.User,
-			BasicAuthPassword: c.Token,
-
-			// you can disable logging by setting this to nil
-			Logger: &PyroscopeLogger{logger: log.Logger},
-
-			UploadRate: time.Second * 60,
-		})
-		if err != nil {
-			return err
-		}
-
-		c.profiler = p
-	}
-
-	return nil
-}
-
-func (c *PyroscopeConfig) Stop() error {
-	if c.profiler != nil {
-		err := c.profiler.Stop()
-		if err != nil {
-			return err
-		}
-		c.profiler = nil
-	}
-	return nil
-}
-
+// TelemetryConfig holds the configuration for OTLP telemetry. It provides
+// flag registration and config file parsing. Use InitializeTelemetry to
+// create a Telemetry handle from this config.
 type TelemetryConfig struct {
 	OTLPAddr     string `toml:"addr"`
 	OTLPCAPath   string `toml:"ca_path"`
@@ -92,11 +59,6 @@ type TelemetryConfig struct {
 	MetricsCollectionInterval time.Duration `toml:"metrics_collection_interval"`
 
 	Pyroscope PyroscopeConfig `toml:"pyroscope"`
-
-	metricsCleanup  *func()
-	tracingCleanup  *func()
-	profilerCleanup *func()
-	watcher         *filesystem.CertificateWatcher
 }
 
 func (t *TelemetryConfig) RegisterFlags(f *flag.FlagSet) {
@@ -111,7 +73,7 @@ func (t *TelemetryConfig) RegisterFlags(f *flag.FlagSet) {
 
 	f.StringVar(&t.ServiceName, "service-name", env.GetEnvStrDefault("SERVICE_NAME", ""), "Service name to use for telemetry")
 
-	f.DurationVar(&t.MetricsCollectionInterval, "otlp.metrics_collection_interval", env.GetEnvDurDefault("METRICS_COLLECTION_INTERVAL", time.Minute), "User used for authenticated to pyroscope")
+	f.DurationVar(&t.MetricsCollectionInterval, "otlp.metrics_collection_interval", env.GetEnvDurDefault("METRICS_COLLECTION_INTERVAL", time.Minute), "Interval between metrics collections")
 
 	f.BoolVar(&t.Insecure, "otlp.insecure", false, "Emit OTLP without needing mTLS certificate")
 }
@@ -120,25 +82,12 @@ func (t *TelemetryConfig) Merge(o *TelemetryConfig) error {
 	if o.Pyroscope.URL != "" {
 		t.Pyroscope.URL = o.Pyroscope.URL
 	}
-
 	if o.Pyroscope.Token != "" {
 		t.Pyroscope.Token = o.Pyroscope.Token
 	}
-
 	if o.Pyroscope.User != "" {
 		t.Pyroscope.User = o.Pyroscope.User
 	}
-
-	err := t.Pyroscope.Stop()
-	if err != nil {
-		return fmt.Errorf("failed to stop pyroscope: %w", err)
-	}
-
-	err = t.Pyroscope.Start(context.Background(), t.ServiceName)
-	if err != nil {
-		return fmt.Errorf("failed to start pyroscope: %w", err)
-	}
-
 	return nil
 }
 
@@ -146,81 +95,268 @@ func (t *TelemetryConfig) Validate() error {
 	return nil
 }
 
-type TelemetryOptions struct {
-	resource       *resource.Resource
-	metricOptions  []metric.Option
-	tracingOptions []sdktrace.TracerProviderOption
+// ---------------------------------------------------------------------------
+// Per-signal option types
+// ---------------------------------------------------------------------------
+
+type metricsConfig struct {
+	extraOpts          []metric.Option
+	collectionInterval time.Duration // 0 = use TelemetryConfig default
 }
 
+type tracingConfig struct {
+	extraOpts []sdktrace.TracerProviderOption
+}
+
+type profilingConfig struct {
+	pyroscope PyroscopeConfig
+}
+
+type loggingConfig struct {
+	extraOpts []sdklog.LoggerProviderOption
+}
+
+// TelemetryOptions aggregates per-signal configs. nil fields mean the signal
+// is disabled.
+type TelemetryOptions struct {
+	resource  *resource.Resource
+	metrics   *metricsConfig
+	tracing   *tracingConfig
+	profiling *profilingConfig
+	logging   *loggingConfig
+}
+
+// Option configures which telemetry signals to enable.
 type Option func(*TelemetryOptions) error
 
-func Resource(resource resource.Resource) Option {
+// WithResource sets a custom OTel resource. If not provided,
+// WithDefaultResource is used.
+func WithResource(r *resource.Resource) Option {
 	return func(o *TelemetryOptions) error {
-		o.resource = &resource
+		o.resource = r
 		return nil
 	}
 }
 
-func MetricOptions(metricOptions ...metric.Option) Option {
+// WithMetrics enables the metrics signal. Additional metric.Option values are
+// appended to the default provider options.
+func WithMetrics(opts ...metric.Option) Option {
 	return func(o *TelemetryOptions) error {
-		o.metricOptions = metricOptions
+		if o.metrics == nil {
+			o.metrics = &metricsConfig{}
+		}
+		o.metrics.extraOpts = append(o.metrics.extraOpts, opts...)
 		return nil
 	}
 }
 
-func TracingOptions(tracingOptions ...sdktrace.TracerProviderOption) Option {
+// WithMetricsCollectionInterval overrides the metrics collection interval.
+// Must be combined with WithMetrics.
+func WithMetricsCollectionInterval(d time.Duration) Option {
 	return func(o *TelemetryOptions) error {
-		o.tracingOptions = tracingOptions
+		if o.metrics == nil {
+			o.metrics = &metricsConfig{}
+		}
+		o.metrics.collectionInterval = d
 		return nil
 	}
 }
 
-func (t *TelemetryOptions) parseOptions(opts ...Option) error {
-	// Range over each options function and apply it to our API type to
-	// configure it. Options functions are applied in order, with any
-	// conflicting options overriding earlier calls.
+// WithTracing enables the tracing signal. Additional TracerProviderOption
+// values are appended to the default provider options.
+func WithTracing(opts ...sdktrace.TracerProviderOption) Option {
+	return func(o *TelemetryOptions) error {
+		if o.tracing == nil {
+			o.tracing = &tracingConfig{}
+		}
+		o.tracing.extraOpts = append(o.tracing.extraOpts, opts...)
+		return nil
+	}
+}
+
+// WithProfiling enables continuous profiling via Pyroscope. The PyroscopeConfig
+// fields override those from TelemetryConfig.Pyroscope when non-empty.
+func WithProfiling(cfg PyroscopeConfig) Option {
+	return func(o *TelemetryOptions) error {
+		o.profiling = &profilingConfig{pyroscope: cfg}
+		return nil
+	}
+}
+
+// WithLogging enables the OTLP log signal. Additional LoggerProviderOption
+// values are appended to the defaults.
+func WithLogging(opts ...sdklog.LoggerProviderOption) Option {
+	return func(o *TelemetryOptions) error {
+		if o.logging == nil {
+			o.logging = &loggingConfig{}
+		}
+		o.logging.extraOpts = append(o.logging.extraOpts, opts...)
+		return nil
+	}
+}
+
+func (o *TelemetryOptions) parseOptions(opts ...Option) error {
 	for _, option := range opts {
-		err := option(t)
-		if err != nil {
+		if err := option(o); err != nil {
 			return err
 		}
 	}
-
 	return nil
 }
 
-// Initialize Metrics + Tracing for the app. NOTE: you must call defer t.Stop() to propely cleanup
-func (t *TelemetryConfig) InitializeTelemetry(ctx context.Context, serviceName string, logger zerolog.Logger, options ...Option) error {
+// ---------------------------------------------------------------------------
+// Telemetry handle
+// ---------------------------------------------------------------------------
+
+// Telemetry holds the initialized providers and exposes a unified Shutdown.
+type Telemetry struct {
+	meterProvider  *metric.MeterProvider
+	tracerProvider *sdktrace.TracerProvider
+	logProvider    *sdklog.LoggerProvider
+	profiler       *pyroscope.Profiler
+	watcher        *filesystem.CertificateWatcher
+}
+
+// MeterProvider returns the initialized MeterProvider, or nil if metrics were
+// not enabled.
+func (t *Telemetry) MeterProvider() *metric.MeterProvider {
+	if t == nil {
+		return nil
+	}
+	return t.meterProvider
+}
+
+// TracerProvider returns the initialized TracerProvider, or nil if tracing was
+// not enabled.
+func (t *Telemetry) TracerProvider() *sdktrace.TracerProvider {
+	if t == nil {
+		return nil
+	}
+	return t.tracerProvider
+}
+
+// LogProvider returns the initialized LoggerProvider, or nil if logging was
+// not enabled.
+func (t *Telemetry) LogProvider() *sdklog.LoggerProvider {
+	if t == nil {
+		return nil
+	}
+	return t.logProvider
+}
+
+// SlogHandler returns an otelslog bridge handler backed by the Telemetry's
+// LoggerProvider. Returns nil if logging was not enabled.
+func (t *Telemetry) SlogHandler(name string) slog.Handler {
+	if t == nil || t.logProvider == nil {
+		return nil
+	}
+	return NewOTLPSlogHandler(name, t.logProvider)
+}
+
+// Shutdown gracefully shuts down all initialized providers. Errors from
+// individual shutdowns are joined via errors.Join.
+func (t *Telemetry) Shutdown(ctx context.Context) error {
+	if t == nil {
+		return nil
+	}
+	var errs []error
+
+	if t.logProvider != nil {
+		if err := t.logProvider.Shutdown(ctx); err != nil {
+			errs = append(errs, fmt.Errorf("log provider shutdown: %w", err))
+		}
+	}
+	if t.tracerProvider != nil {
+		if err := t.tracerProvider.Shutdown(ctx); err != nil {
+			errs = append(errs, fmt.Errorf("tracer provider shutdown: %w", err))
+		}
+	}
+	if t.meterProvider != nil {
+		if err := t.meterProvider.Shutdown(ctx); err != nil {
+			errs = append(errs, fmt.Errorf("meter provider shutdown: %w", err))
+		}
+	}
+	if t.profiler != nil {
+		if err := t.profiler.Stop(); err != nil {
+			errs = append(errs, fmt.Errorf("profiler shutdown: %w", err))
+		}
+	}
+	if t.watcher != nil {
+		if err := t.watcher.Stop(); err != nil {
+			errs = append(errs, fmt.Errorf("certificate watcher shutdown: %w", err))
+		}
+	}
+
+	return errors.Join(errs...)
+}
+
+// ---------------------------------------------------------------------------
+// InitializeTelemetry
+// ---------------------------------------------------------------------------
+
+// InitializeTelemetry creates providers for the enabled signals and returns a
+// Telemetry handle. When no With*() options are provided, nothing is
+// initialized and an empty (but non-nil) Telemetry is returned.
+//
+// The logger used for init-time messages is retrieved from ctx via
+// slogger.FromContext.
+func (t *TelemetryConfig) InitializeTelemetry(ctx context.Context, serviceName string, options ...Option) (*Telemetry, error) {
+	logger := slogger.FromContext(ctx)
+
 	if t.ServiceName == "" {
 		t.ServiceName = serviceName
 	}
+
+	telOpts := TelemetryOptions{}
+	if err := telOpts.parseOptions(options...); err != nil {
+		return nil, fmt.Errorf("failed to parse telemetry options: %w", err)
+	}
+
+	// Resolve resource.
+	if telOpts.resource == nil {
+		r, err := WithDefaultResource(ctx, t.ServiceName)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create resource: %w", err)
+		}
+		telOpts.resource = r
+	}
+
+	// Resolve gRPC credentials.
 	var creds *credentials.TransportCredentials
+	tel := &Telemetry{}
+
 	if t.OTLPCAPath != "" || t.OTLPCertPath != "" || t.OTLPKeyPath != "" {
-		logger.Debug().Str("caPath", t.OTLPCAPath).Str("certPath", t.OTLPCertPath).Str("keyPath", t.OTLPKeyPath).Msg("detected mTLS credentials")
-		w, err := filesystem.NewCertificateWatcher(t.OTLPCertPath, t.OTLPKeyPath, logger, time.Second*5)
+		logger.Debug("detected mTLS credentials",
+			"caPath", t.OTLPCAPath,
+			"certPath", t.OTLPCertPath,
+			"keyPath", t.OTLPKeyPath,
+		)
+		// CertificateWatcher still takes zerolog.Logger (filesystem package
+		// not yet migrated). Pass a Nop logger — the slog logger above
+		// handles all observability logging.
+		w, err := filesystem.NewCertificateWatcher(t.OTLPCertPath, t.OTLPKeyPath, zerolog.Nop(), time.Second*5)
 		if err != nil {
-			return fmt.Errorf("failed to create OTLP certificate watcher: %w", err)
+			return nil, fmt.Errorf("failed to create OTLP certificate watcher: %w", err)
 		}
-		t.watcher = w
-		_, err = t.watcher.Start(ctx)
+		tel.watcher = w
+		_, err = w.Start(ctx)
 		if err != nil {
-			return fmt.Errorf("failed to start certificate watcher: %w", err)
-		}
-		ca, err := os.ReadFile(t.OTLPCAPath)
-		if err != nil {
-			return fmt.Errorf("can't read ca file from %s", t.OTLPCAPath)
+			return nil, fmt.Errorf("failed to start certificate watcher: %w", err)
 		}
 
+		ca, err := os.ReadFile(t.OTLPCAPath)
+		if err != nil {
+			return nil, fmt.Errorf("can't read ca file from %s", t.OTLPCAPath)
+		}
 		capool := x509.NewCertPool()
 		if !capool.AppendCertsFromPEM(ca) {
-			return fmt.Errorf("can't add CA cert to pool")
+			return nil, fmt.Errorf("can't add CA cert to pool")
 		}
 
 		tlsConfig := &tls.Config{
 			RootCAs:        capool,
 			GetCertificate: w.GetCertificateFunc(),
 		}
-
 		conf := credentials.NewTLS(tlsConfig)
 		creds = &conf
 	} else if t.Insecure {
@@ -228,79 +364,93 @@ func (t *TelemetryConfig) InitializeTelemetry(ctx context.Context, serviceName s
 		creds = &conf
 	}
 
-	telemetryOptions := TelemetryOptions{}
-	telemetryOptions.parseOptions(options...)
+	logger.Info("initializing observability", "OTLPAddr", t.OTLPAddr)
 
-	if telemetryOptions.resource == nil {
-		resource, err := WithDefaultResource(ctx, serviceName)
-		if err != nil {
-			return fmt.Errorf("failed to create resource: %w", err)
+	// --- Metrics ---
+	if telOpts.metrics != nil {
+		logger.Info("initializing provider", "OTLPAddr", t.OTLPAddr, "type", "metrics")
+		interval := t.MetricsCollectionInterval
+		if telOpts.metrics.collectionInterval > 0 {
+			interval = telOpts.metrics.collectionInterval
 		}
-		telemetryOptions.resource = resource
+
+		metricOpts := WithDefaultMetricOpts(t.ServiceName)
+		metricOpts = append(metricOpts, metric.WithResource(telOpts.resource))
+		metricOpts = append(metricOpts, telOpts.metrics.extraOpts...)
+
+		mp, err := InitMetricsProvider(logger, t.OTLPAddr, creds, interval, metricOpts...)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize metric provider: %w", err)
+		}
+		tel.meterProvider = mp
+		logger.Debug("initialized provider", "OTLPAddr", t.OTLPAddr, "type", "metrics")
 	}
 
-	logger.Info().Str("OTLPAddr", t.OTLPAddr).Msg("initializing observability")
+	// --- Tracing ---
+	if telOpts.tracing != nil {
+		logger.Info("initializing provider", "OTLPAddr", t.OTLPAddr, "type", "tracing")
 
-	logger.Info().Str("OTLPAddr", t.OTLPAddr).Str("type", "metrics").Msg("initializing provider")
-	metricOpts := WithDefaultMetricOpts(serviceName)
-	metricOpts = append(metricOpts, metric.WithResource(telemetryOptions.resource))
-	if len(telemetryOptions.metricOptions) > 0 {
-		metricOpts = append(metricOpts, telemetryOptions.metricOptions...)
+		traceOpts := WithDefaultTracingOpts(t.ServiceName)
+		traceOpts = append(traceOpts, sdktrace.WithResource(telOpts.resource))
+		traceOpts = append(traceOpts, telOpts.tracing.extraOpts...)
+
+		tp, err := InitTraceProvider(logger, t.ServiceName, t.OTLPAddr, creds, t.Pyroscope, traceOpts...)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize trace provider: %w", err)
+		}
+		tel.tracerProvider = tp
+		logger.Debug("initialized provider", "OTLPAddr", t.OTLPAddr, "type", "tracing")
 	}
 
-	metricsCleanup, err := InitMetricsProvider(logger, t.OTLPAddr, creds, t.MetricsCollectionInterval, metricOpts...)
-	if err != nil {
-		return fmt.Errorf("failed to initialize metric provider %w", err)
-	}
-	t.metricsCleanup = &metricsCleanup
-	log.Debug().Str("OTLPAddr", t.OTLPAddr).Str("type", "metrics").Msg("initialized provider")
+	// --- Profiling ---
+	if telOpts.profiling != nil {
+		pCfg := telOpts.profiling.pyroscope
+		// Fall back to TelemetryConfig values for unset fields.
+		if pCfg.URL == "" {
+			pCfg.URL = t.Pyroscope.URL
+		}
+		if pCfg.Token == "" {
+			pCfg.Token = t.Pyroscope.Token
+		}
+		if pCfg.User == "" {
+			pCfg.User = t.Pyroscope.User
+		}
 
-	traceOpts := WithDefaultTracingOpts(serviceName)
-	traceOpts = append(traceOpts, sdktrace.WithResource(telemetryOptions.resource))
-	if len(telemetryOptions.tracingOptions) > 0 {
-		traceOpts = append(traceOpts, telemetryOptions.tracingOptions...)
-	}
+		if pCfg.URL != "" {
+			logger.Info("initializing provider", "url", pCfg.URL, "type", "profiling")
 
-	log.Info().Str("OTLPAddr", t.OTLPAddr).Str("type", "tracing").Msg("initializing provider")
-	tracingCleanup, err := InitTraceProvider(logger, serviceName, t.OTLPAddr, creds, t.Pyroscope, traceOpts...)
-	if err != nil {
-		log.Error().Err(err).Str("OTLPAddr", t.OTLPAddr).Str("type", "tracing").Msg("failed to intialize provider")
-		return fmt.Errorf("failed to initialize trace provider: %w", err)
-	}
-	t.tracingCleanup = &tracingCleanup
-	log.Debug().Str("OTLPAddr", t.OTLPAddr).Str("type", "tracing").Msg("initialized provider")
+			runtime.SetMutexProfileFraction(5)
+			runtime.SetBlockProfileRate(5)
 
-	log.Info().Str("url", t.Pyroscope.URL).Str("type", "profiling").Msg("initializing provider")
-	err = t.Pyroscope.Start(ctx, t.ServiceName)
-	if err != nil {
-		log.Error().Err(err).Str("url", t.Pyroscope.URL).Str("type", "profiling").Msg("failed to intialize provider")
-		return fmt.Errorf("failed to initialize profiling provider: %w", err)
-	}
-	log.Info().Str("url", t.Pyroscope.URL).Str("type", "profiling").Msg("done initializing provider")
-	profilerCleanup := func() {
-		t.Pyroscope.Stop()
-	}
-	t.profilerCleanup = &profilerCleanup
-
-	return nil
-}
-
-func (t *TelemetryConfig) Shutdown(ctx context.Context, logger zerolog.Logger) error {
-	if t.metricsCleanup != nil {
-		(*t.metricsCleanup)()
+			p, err := pyroscope.Start(pyroscope.Config{
+				ApplicationName:   t.ServiceName,
+				ServerAddress:     pCfg.URL,
+				BasicAuthUser:     pCfg.User,
+				BasicAuthPassword: pCfg.Token,
+				Logger:            &pyroscopeLogger{logger: logger},
+				UploadRate:        time.Second * 60,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("failed to initialize profiling provider: %w", err)
+			}
+			tel.profiler = p
+			logger.Debug("initialized provider", "url", pCfg.URL, "type", "profiling")
+		} else {
+			logger.Debug("profiling enabled but no URL set, skipping", "type", "profiling")
+		}
 	}
 
-	if t.tracingCleanup != nil {
-		(*t.tracingCleanup)()
+	// --- Logging (OTLP) ---
+	if telOpts.logging != nil {
+		logger.Info("initializing provider", "OTLPAddr", t.OTLPAddr, "type", "logging")
+
+		lp, err := InitLogProvider(ctx, logger, t.OTLPAddr, creds, telOpts.resource, telOpts.logging.extraOpts...)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize log provider: %w", err)
+		}
+		tel.logProvider = lp
+		logger.Debug("initialized provider", "OTLPAddr", t.OTLPAddr, "type", "logging")
 	}
 
-	if t.profilerCleanup != nil {
-		(*t.profilerCleanup)()
-	}
-
-	if t.watcher != nil {
-		return t.watcher.Stop()
-	}
-
-	return nil
+	return tel, nil
 }

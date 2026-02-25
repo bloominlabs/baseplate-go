@@ -13,6 +13,8 @@ import (
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+
+	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
 	// "github.com/aws/smithy-go/metrics/smithyotelmetrics"
 	// "github.com/aws/smithy-go/tracing/smithyoteltracing"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/aws/aws-sdk-go-v2/otelaws"
@@ -68,7 +70,8 @@ type S3Config struct {
 	//    hatch while we figure out the ideal way to do this
 	// BucketName  string `toml:"bucket_name"`
 
-	client *s3.Client
+	client          *s3.Client
+	transferManager *transfermanager.Client
 }
 
 // WithClient sets the s3 client manually. useful when writing tests with an already
@@ -81,12 +84,29 @@ func (c *S3Config) WithClient(client *s3.Client) {
 	c.client = client
 }
 
+func (c *S3Config) WithTransferManager(tm *transfermanager.Client) {
+	c.transferManager = tm
+}
+
+type Option func(*S3Config)
+
+func WithPrefix(prefix string) Option {
+	return func(c *S3Config) {
+		c.prefix = prefix
+	}
+}
+
 // RegisterFlags registers S3Config flags with the provided flag.FlagSet. The
 // prefix must only container alphanumeric characters or periods for instance -
 // `spaces`, `spaces.sfo3`, etc.
-func (c *S3Config) RegisterFlags(f *flag.FlagSet, prefix string) {
-	c.prefix = prefix
-	prefix, upperPrefix := CreatePrefix(prefix)
+func (c *S3Config) RegisterFlags(f *flag.FlagSet, opts ...Option) {
+	for _, opt := range opts {
+		opt(c)
+	}
+	if c.prefix == "" {
+		c.prefix = "s3"
+	}
+	prefix, upperPrefix := CreatePrefix(c.prefix)
 	f.BoolVar(
 		&c.TLSSkipVerify,
 		fmt.Sprintf("%s.tls-skip-verify", prefix),
@@ -144,12 +164,18 @@ func (c *S3Config) Merge(other *S3Config) error {
 
 	client, err := c.CreateClient()
 	if err != nil {
-		return err
-	} else {
-		c.Lock()
-		c.client = client
-		c.Unlock()
+		return fmt.Errorf("failed to create s3 client: %w", err)
 	}
+
+	tm, err := c.CreateTransferManager()
+	if err != nil {
+		return fmt.Errorf("failed to create transfer manager: %w", err)
+	}
+
+	c.Lock()
+	c.client = client
+	c.transferManager = tm
+	c.Unlock()
 
 	return nil
 }
@@ -196,21 +222,50 @@ func (c *S3Config) CreateClient() (*s3.Client, error) {
 	}), nil
 }
 
-// GetClient fetches an existing or initializes a new s3 client. NOTE: you must call defer t.Stop() to propely cleanup
-func (c *S3Config) GetClient() (s3.Client, error) {
+func (c *S3Config) GetClient() (*s3.Client, error) {
 	if c.client == nil {
 		client, err := c.CreateClient()
 		if err != nil {
-			return *client, err
+			return client, err
 		}
 		c.Lock()
 		c.client = client
 		c.Unlock()
 
-		return *client, err
+		return client, err
 	}
 
 	c.RLock()
 	defer c.RUnlock()
-	return *c.client, nil
+	return c.client, nil
+}
+
+func (c *S3Config) CreateTransferManager() (*transfermanager.Client, error) {
+	client, err := c.GetClient()
+	if err != nil {
+		return nil, fmt.Errorf("could not create s3 client: %w", err)
+	}
+	c.Lock()
+	c.transferManager = transfermanager.New(client)
+	c.Unlock()
+
+	return c.transferManager, nil
+}
+
+func (c *S3Config) GetTransferManager() (*transfermanager.Client, error) {
+	if c.transferManager == nil {
+		tm, err := c.CreateTransferManager()
+		if err != nil {
+			return nil, fmt.Errorf("could not create transfer manager: %w", err)
+		}
+		c.Lock()
+		c.transferManager = tm
+		c.Unlock()
+
+		return tm, nil
+	}
+
+	c.RLock()
+	defer c.RUnlock()
+	return c.transferManager, nil
 }

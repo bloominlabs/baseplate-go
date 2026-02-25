@@ -20,7 +20,6 @@ func (nomad) Detect(ctx context.Context) (*resource.Resource, error) {
 	), nil
 }
 
-// WithHost adds attributes from the host to the configured resource.
 func WithNomad() resource.Option {
 	return resource.WithDetectors(nomad{})
 }

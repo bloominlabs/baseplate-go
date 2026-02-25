@@ -5,6 +5,7 @@ import (
 	"flag"
 	"net/http"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -23,9 +24,18 @@ type NomadConfig struct {
 	client  *api.Client
 }
 
-func (c *NomadConfig) RegisterFlags(f *flag.FlagSet) {
-	f.StringVar(&c.Address, "nomad.addr", env.GetEnvStrDefault("NOMAD_ADDR", "localhost:4646"), "hostname:port to connect to the nomad server")
-	f.StringVar(&c.Token, "noamd.token", env.GetEnvStrDefault("NOMAD_TOKEN", ""), "Token to use to authenticate to nomad")
+func (c *NomadConfig) RegisterFlags(f *flag.FlagSet, prefix string) {
+	cliPrefix := "nomad"
+	if prefix != "" {
+		cliPrefix = prefix + "." + cliPrefix
+	}
+
+	envPrefix := "NOMAD"
+	if prefix != "" {
+		envPrefix = envPrefix + "_" + strings.ToUpper(prefix)
+	}
+	f.StringVar(&c.Address, cliPrefix+".addr", env.GetEnvStrDefault(envPrefix+"_ADDR", "localhost:4646"), "hostname:port to connect to the nomad server")
+	f.StringVar(&c.Token, cliPrefix+".token", env.GetEnvStrDefault(envPrefix+"_TOKEN", ""), "Token to use to authenticate to nomad")
 }
 
 func (c *NomadConfig) Merge(other *NomadConfig) error {
