@@ -190,7 +190,7 @@ func (c *SlogConfig) RegisterFlags(f *flag.FlagSet) {
 	f.StringVar(
 		&c.LogLevel,
 		"slogger.log-level",
-		env.GetEnvStrDefault("LOG_LEVEL", "debug"),
+		env.GetEnvStrDefault("LOG_LEVEL", "info"),
 		"the log level to use for the logger (trace, debug, info, warn, error)",
 	)
 }
