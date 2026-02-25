@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -15,14 +17,13 @@ import (
 	"github.com/auth0/go-jwt-middleware/v2/validator"
 	"github.com/gorilla/websocket"
 	"github.com/hashicorp/go-cleanhttp"
-	"github.com/justinas/alice"
 	"github.com/rs/cors"
-	"github.com/rs/zerolog/hlog"
-	"github.com/rs/zerolog/log"
 	"github.com/sethvargo/go-limiter/httplimit"
 	"github.com/sethvargo/go-limiter/memorystore"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/propagation"
+
+	"github.com/bloominlabs/baseplate-go/config/slogger"
 )
 
 // CustomClaims contains custom data we want from the token.
@@ -70,7 +71,7 @@ func (c NomadCustomClaims) Validate(ctx context.Context) error {
 }
 
 // JWTClaimsValueFromCtx gets the parsed claims from the JWT provided in the request.
-// Requires running hte JWTValidatorMiddleware. Can then be used to extra custom claims via
+// Requires running the JWTValidatorMiddleware. Can then be used to extract custom claims via
 // ```
 // validatedClaims, ok := JWTClaimsValueFromCtx(ctx)
 //
@@ -112,7 +113,7 @@ func NomadCustomClaimsFromCtx(ctx context.Context) (*NomadCustomClaims, error) {
 
 	customClaims, ok := raw.CustomClaims.(*NomadCustomClaims)
 	if !ok {
-		return nil, fmt.Errorf("failed to convert custom claims returned to StratosOAuth2CustomClaims")
+		return nil, fmt.Errorf("failed to convert custom claims returned to NomadCustomClaims")
 	}
 
 	return customClaims, nil
@@ -120,9 +121,9 @@ func NomadCustomClaimsFromCtx(ctx context.Context) (*NomadCustomClaims, error) {
 
 func ErrorHandler(w http.ResponseWriter, r *http.Request, err error) {
 	w.Header().Set("Content-Type", "application/json")
-	logger := hlog.FromRequest(r)
+	logger := slogger.FromContext(r.Context())
 
-	logger.Warn().Stack().Err(err).Msg("user failed to authenticate using JWT")
+	logger.Warn("user failed to authenticate using JWT", "error", err)
 	switch {
 	case errors.Is(err, jwtmiddleware.ErrJWTMissing):
 		w.WriteHeader(http.StatusBadRequest)
@@ -182,12 +183,14 @@ func RatelimiterMiddleware(opts ...RatelimiterOption) func(http.Handler) http.Ha
 
 	store, err := memorystore.New(config.MemoryStoreConfig)
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to initialize store")
+		slog.Error("failed to initialize store", "error", err)
+		os.Exit(1)
 	}
 
 	middleware, err := httplimit.NewMiddleware(store, config.KeyFunc)
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to initialize middleware")
+		slog.Error("failed to initialize middleware", "error", err)
+		os.Exit(1)
 	}
 
 	return middleware.Handle
@@ -215,7 +218,8 @@ func jwtMiddleware(issuerURL string, audience []string, customClaims func() vali
 
 	parsedIssuerURL, err := url.Parse(issuerURL)
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to parse the issuer url")
+		slog.Error("failed to parse the issuer url", "error", err)
+		os.Exit(1)
 	}
 
 	provider := jwks.NewCachingProvider(
@@ -255,30 +259,65 @@ func NomadJWTMiddleware(nomadURL string, audience []string, opts ...jwtmiddlewar
 	}, opts...)
 }
 
-// Setup
-// [github.com/rs/zerolog/hlog](https://github.com/rs/zerolog#integration-with-nethttp)
-// integration. Must be called after 'OTLPHandler'.
-func HlogHandler(h http.Handler) http.Handler {
-	c := alice.New()
-	// Install the logger handler with default output on the console
-	c = c.Append(hlog.NewHandler(log.Logger))
+// responseWriter wraps http.ResponseWriter to capture status code and bytes written.
+type responseWriter struct {
+	http.ResponseWriter
+	status int
+	size   int
+}
 
-	// Install some provided extra handler to set some request's context fields.
-	// Thanks to that handler, all our logs will come with some prepopulated fields.
-	c = c.Append(hlog.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
-		hlog.FromRequest(r).Info().Ctx(r.Context()).
-			Str("method", r.Method).
-			Stringer("url", r.URL).
-			Int("status", status).
-			Int("size", size).
-			Dur("duration", duration).
-			Msg("")
-	}))
-	c = c.Append(hlog.RemoteAddrHandler("ip"))
-	c = c.Append(hlog.UserAgentHandler("user_agent"))
-	c = c.Append(hlog.RefererHandler("referer"))
+func (rw *responseWriter) WriteHeader(status int) {
+	rw.status = status
+	rw.ResponseWriter.WriteHeader(status)
+}
 
-	return c.Then(h)
+func (rw *responseWriter) Write(b []byte) (int, error) {
+	n, err := rw.ResponseWriter.Write(b)
+	rw.size += n
+	return n, err
+}
+
+// Unwrap returns the underlying ResponseWriter, supporting http.Flusher etc.
+func (rw *responseWriter) Unwrap() http.ResponseWriter {
+	return rw.ResponseWriter
+}
+
+// SlogHandler replaces HlogHandler. It stores an enriched logger (with ip,
+// user_agent, referer) in the request context via slogger.NewContext, and
+// logs an access line after the request completes.
+//
+// Must be called after OTLPHandler so that trace context is available.
+func SlogHandler(logger *slog.Logger) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			start := time.Now()
+
+			// Enrich the logger with request metadata.
+			reqLogger := logger.With(
+				"ip", r.RemoteAddr,
+				"user_agent", r.UserAgent(),
+				"referer", r.Referer(),
+			)
+
+			// Store enriched logger in context for downstream handlers.
+			ctx := slogger.NewContext(r.Context(), reqLogger)
+			r = r.WithContext(ctx)
+
+			// Wrap the response writer to capture status and size.
+			wrapped := &responseWriter{ResponseWriter: w, status: http.StatusOK}
+
+			next.ServeHTTP(wrapped, r)
+
+			// Log access line after request completes.
+			reqLogger.Info("",
+				"method", r.Method,
+				"url", r.URL.String(),
+				"status", wrapped.status,
+				"size", wrapped.size,
+				"duration", time.Since(start),
+			)
+		})
+	}
 }
 
 func CorsMiddleware(next http.Handler) http.Handler {
@@ -293,7 +332,7 @@ func CorsMiddleware(next http.Handler) http.Handler {
 func CreateWebsocketTransport(v validator.Validator, callback func(context.Context, *validator.ValidatedClaims) (context.Context, error)) transport.Websocket {
 	return transport.Websocket{
 		InitFunc: func(ctx context.Context, initPayload transport.InitPayload) (context.Context, *transport.InitPayload, error) {
-			logger := log.Ctx(ctx)
+			logger := slogger.FromContext(ctx)
 			authorization := initPayload.Authorization()
 			// HTTP Authorization headers are in the format: <Scheme>[SPACE]<Value>
 			// Ref. https://tools.ietf.org/html/rfc7236#section-3
@@ -313,12 +352,12 @@ func CreateWebsocketTransport(v validator.Validator, callback func(context.Conte
 					token := strings.TrimSpace(strings.Split(value, " ")[0])
 					claims, err := v.ValidateToken(ctx, token)
 					if err != nil {
-						logger.Error().Ctx(ctx).Err(err).Msg("failed to validate websocket token")
+						logger.Error("failed to validate websocket token", "error", err)
 						return nil, nil, fmt.Errorf("failed to validate JWT. please verify you're logged in")
 					}
 					validatedClaims, ok := claims.(*validator.ValidatedClaims)
 					if !ok {
-						logger.Error().Ctx(ctx).Interface("claims", claims).Msg("failed to validate JWT. could not parse validatedClaims")
+						logger.Error("failed to validate JWT, could not parse validatedClaims")
 						return nil, nil, fmt.Errorf("failed to validate JWT. please verify you're logged in")
 					}
 					if callback != nil {
