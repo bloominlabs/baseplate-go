@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/pelletier/go-toml/v2"
@@ -23,7 +24,6 @@ const ConfigFileFlag = "config.file"
 type Configuration interface {
 	RegisterFlags(*flag.FlagSet)
 	Validate() error
-	GetLogger() *slog.Logger
 }
 
 // WatchableConfiguration extends Configuration with a Merge method, enabling
@@ -70,8 +70,11 @@ func ParseConfigFileParameter(args []string) (configFile string) {
 // implements WatchableConfiguration and a config file is specified, a
 // background goroutine watches the file for changes and calls Merge
 // automatically. The goroutine is canceled when ctx is canceled.
-func ParseConfiguration(ctx context.Context, cfg Configuration) error {
-	configFile := ParseConfigFileParameter(os.Args[1:])
+func ParseConfiguration[T WatchableConfiguration](ctx context.Context, cfg T, createCfg func() T) error {
+	configFile, err := filepath.Abs(ParseConfigFileParameter(os.Args[1:]))
+	if err != nil {
+		return fmt.Errorf("failed to get absolute path for config file: %w", err)
+	}
 
 	// This sets default values from flags to the config.
 	// It needs to be called before parsing the config file!
@@ -88,7 +91,7 @@ func ParseConfiguration(ctx context.Context, cfg Configuration) error {
 
 	// If the config supports merging AND a config file was specified, start
 	// a watcher goroutine.
-	if wCfg, ok := cfg.(WatchableConfiguration); ok && configFile != "" {
+	if configFile != "" {
 		// NewRateLimitedFileWatcher still requires zerolog.Logger — pass Nop
 		// until the filesystem package is migrated.
 		w, err := filesystem.NewRateLimitedFileWatcher([]string{configFile}, zerolog.Nop(), time.Second*5)
@@ -100,7 +103,7 @@ func ParseConfiguration(ctx context.Context, cfg Configuration) error {
 
 		go func() {
 			for {
-				logger := cfg.GetLogger()
+				logger := slog.Default()
 				select {
 				case <-ctx.Done():
 					if err := w.Stop(); err != nil {
@@ -111,11 +114,16 @@ func ParseConfiguration(ctx context.Context, cfg Configuration) error {
 					}
 					return
 				case event := <-w.EventsCh():
+					newConfig := createCfg()
 					logger.Debug("config file changed, reloading",
 						"files", event.Filenames,
 					)
 
-					if err := DecodeConfiguration(configFile, wCfg); err != nil {
+					// register the flags so that newConfig gets the appropriate defaults
+					flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
+					newConfig.RegisterFlags(flag.NewFlagSet("testtesttest", flag.ContinueOnError))
+
+					if err := DecodeConfiguration(configFile, &newConfig); err != nil {
 						logger.Error("failed to decode updated config file",
 							"file", configFile,
 							"error", err,
@@ -123,10 +131,18 @@ func ParseConfiguration(ctx context.Context, cfg Configuration) error {
 						continue
 					}
 
-					if err := wCfg.Validate(); err != nil {
+					if err := newConfig.Validate(); err != nil {
 						logger.Error("updated config failed validation",
 							"file", configFile,
 							"error", err,
+						)
+						continue
+					}
+
+					if err := cfg.Merge(newConfig); err != nil {
+						logger.Error(
+							"failed to merge configuration",
+							slog.String("err", err.Error()),
 						)
 						continue
 					}

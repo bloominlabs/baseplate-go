@@ -347,5 +347,7 @@ func (c *SlogConfig) GetLogger() *slog.Logger {
 		logger = logger.With("serverId", serverID)
 	}
 
+	slog.SetDefault(logger)
+
 	return logger
 }

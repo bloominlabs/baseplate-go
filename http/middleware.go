@@ -362,7 +362,6 @@ func CreateWebsocketTransport(v validator.Validator, callback func(context.Conte
 					}
 					if callback != nil {
 						ctx, err = callback(ctx, validatedClaims)
-						fmt.Println(ctx, err)
 						return ctx, nil, err
 					}
 

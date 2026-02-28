@@ -1,34 +1,43 @@
 package main
 
 import (
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
+	"context"
+	"log/slog"
+	"os"
 
 	"github.com/bloominlabs/baseplate-go/config"
-	"github.com/bloominlabs/baseplate-go/config/logger"
+	"github.com/bloominlabs/baseplate-go/config/slogger"
 )
 
-const SLUG = "acme-example"
+const SLUG = "logger-example"
 
 type Config struct {
-	Logger logger.LoggerConfig
+	Logger slogger.SlogConfig `toml:"logger"`
+}
+
+func (c *Config) Validate() error {
+	return c.Logger.Validate()
+}
+
+func (c *Config) RegisterFlags(f *flag.FlagSet) {
+	c.Logger.RegisterFlags(f)
 }
 
 func main() {
-	var (
-		cfg Config
-	)
+	var cfg Config
+	ctx := context.Background()
 
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	_, err := config.ParseConfiguration(&cfg.Logger)
+	err := config.ParseConfiguration(ctx, &cfg, nil)
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to parse configuration")
+		slog.Error("failed to parse configuration", "error", err)
+		os.Exit(1)
 	}
 
-	logger := cfg.Logger.GetLogger()
-	logger.Trace().Msg("error")
-	logger.Debug().Msg("debug")
-	logger.Info().Msg("info")
-	logger.Warn().Msg("warn")
-	logger.Error().Msg("error")
+	logger := cfg.Logger.GetLogger(slogger.WithJSONHandler())
+
+	logger.Log(ctx, slogger.LevelTrace, "trace message")
+	logger.Debug("debug")
+	logger.Info("info")
+	logger.Warn("warn")
+	logger.Error("error")
 }

@@ -31,9 +31,9 @@ type pyroscopeLogger struct {
 	logger *slog.Logger
 }
 
-func (l *pyroscopeLogger) Infof(a string, b ...interface{})  {}
-func (l *pyroscopeLogger) Debugf(a string, b ...interface{}) {}
-func (l *pyroscopeLogger) Errorf(a string, b ...interface{}) {
+func (l *pyroscopeLogger) Infof(a string, b ...any)  {}
+func (l *pyroscopeLogger) Debugf(a string, b ...any) {}
+func (l *pyroscopeLogger) Errorf(a string, b ...any) {
 	l.logger.Error(fmt.Sprintf(a, b...))
 }
 
@@ -59,6 +59,8 @@ type TelemetryConfig struct {
 	MetricsCollectionInterval time.Duration `toml:"metrics_collection_interval"`
 
 	Pyroscope PyroscopeConfig `toml:"pyroscope"`
+
+	Telemetry *Telemetry
 }
 
 func (t *TelemetryConfig) RegisterFlags(f *flag.FlagSet) {
@@ -79,15 +81,79 @@ func (t *TelemetryConfig) RegisterFlags(f *flag.FlagSet) {
 }
 
 func (t *TelemetryConfig) Merge(o *TelemetryConfig) error {
+	refreshPyroscope := false
+
 	if o.Pyroscope.URL != "" {
+		if t.Pyroscope.URL != o.Pyroscope.URL {
+			refreshPyroscope = true
+		}
 		t.Pyroscope.URL = o.Pyroscope.URL
 	}
 	if o.Pyroscope.Token != "" {
+		if t.Pyroscope.Token != o.Pyroscope.Token {
+			refreshPyroscope = true
+		}
 		t.Pyroscope.Token = o.Pyroscope.Token
 	}
 	if o.Pyroscope.User != "" {
+		if t.Pyroscope.User != o.Pyroscope.User {
+			refreshPyroscope = true
+		}
 		t.Pyroscope.User = o.Pyroscope.User
 	}
+
+	if refreshPyroscope {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		err := t.InitPyroscope(ctx)
+		cancel()
+		if err != nil {
+			return fmt.Errorf("failed to re-initialize pyroscope: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (t *TelemetryConfig) InitPyroscope(ctx context.Context) error {
+	logger := slog.Default()
+	if t.Telemetry == nil {
+		logger.DebugContext(ctx, "telemetry is disabled skipping pyroscope initialization")
+		return nil
+	}
+	if !t.Telemetry.profilerEnabled {
+		logger.DebugContext(ctx, "profiling not enabled, skipping pyroscope initialization")
+		return nil
+	}
+
+	if t.Pyroscope.URL != "" {
+		logger.Info("initializing provider", "url", t.Pyroscope.URL, "type", "profiling")
+
+		runtime.SetMutexProfileFraction(5)
+		runtime.SetBlockProfileRate(5)
+
+		p, err := pyroscope.Start(pyroscope.Config{
+			ApplicationName:   t.ServiceName,
+			ServerAddress:     t.Pyroscope.URL,
+			BasicAuthUser:     t.Pyroscope.User,
+			BasicAuthPassword: t.Pyroscope.Token,
+			Logger:            &pyroscopeLogger{logger: logger},
+			UploadRate:        time.Second * 60,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to initialize profiling provider: %w", err)
+		}
+		t.Telemetry.profiler = p
+		runtime.SetFinalizer(t.Telemetry.profiler, func(p *pyroscope.Profiler) {
+			logger := slog.Default()
+			if err := p.Stop(); err != nil {
+				logger.Error("failed to stop profiler", "err", err.Error())
+			}
+		})
+		logger.Debug("initialized provider", "url", t.Pyroscope.URL, "type", "profiling")
+	} else {
+		logger.Debug("profiling enabled but no URL set, skipping", "type", "profiling")
+	}
+
 	return nil
 }
 
@@ -174,11 +240,12 @@ func WithTracing(opts ...sdktrace.TracerProviderOption) Option {
 	}
 }
 
-// WithProfiling enables continuous profiling via Pyroscope. The PyroscopeConfig
-// fields override those from TelemetryConfig.Pyroscope when non-empty.
-func WithProfiling(cfg PyroscopeConfig) Option {
+// WithProfiling enables continuous profiling via Pyroscope.
+func WithProfiling() Option {
 	return func(o *TelemetryOptions) error {
-		o.profiling = &profilingConfig{pyroscope: cfg}
+		if o.profiling == nil {
+			o.profiling = &profilingConfig{}
+		}
 		return nil
 	}
 }
@@ -210,11 +277,12 @@ func (o *TelemetryOptions) parseOptions(opts ...Option) error {
 
 // Telemetry holds the initialized providers and exposes a unified Shutdown.
 type Telemetry struct {
-	meterProvider  *metric.MeterProvider
-	tracerProvider *sdktrace.TracerProvider
-	logProvider    *sdklog.LoggerProvider
-	profiler       *pyroscope.Profiler
-	watcher        *filesystem.CertificateWatcher
+	meterProvider   *metric.MeterProvider
+	tracerProvider  *sdktrace.TracerProvider
+	logProvider     *sdklog.LoggerProvider
+	profiler        *pyroscope.Profiler
+	profilerEnabled bool
+	watcher         *filesystem.CertificateWatcher
 }
 
 // MeterProvider returns the initialized MeterProvider, or nil if metrics were
@@ -290,10 +358,6 @@ func (t *Telemetry) Shutdown(ctx context.Context) error {
 	return errors.Join(errs...)
 }
 
-// ---------------------------------------------------------------------------
-// InitializeTelemetry
-// ---------------------------------------------------------------------------
-
 // InitializeTelemetry creates providers for the enabled signals and returns a
 // Telemetry handle. When no With*() options are provided, nothing is
 // initialized and an empty (but non-nil) Telemetry is returned.
@@ -365,6 +429,7 @@ func (t *TelemetryConfig) InitializeTelemetry(ctx context.Context, serviceName s
 	}
 
 	logger.Info("initializing observability", "OTLPAddr", t.OTLPAddr)
+	t.Telemetry = tel
 
 	// --- Metrics ---
 	if telOpts.metrics != nil {
@@ -404,39 +469,9 @@ func (t *TelemetryConfig) InitializeTelemetry(ctx context.Context, serviceName s
 
 	// --- Profiling ---
 	if telOpts.profiling != nil {
-		pCfg := telOpts.profiling.pyroscope
-		// Fall back to TelemetryConfig values for unset fields.
-		if pCfg.URL == "" {
-			pCfg.URL = t.Pyroscope.URL
-		}
-		if pCfg.Token == "" {
-			pCfg.Token = t.Pyroscope.Token
-		}
-		if pCfg.User == "" {
-			pCfg.User = t.Pyroscope.User
-		}
-
-		if pCfg.URL != "" {
-			logger.Info("initializing provider", "url", pCfg.URL, "type", "profiling")
-
-			runtime.SetMutexProfileFraction(5)
-			runtime.SetBlockProfileRate(5)
-
-			p, err := pyroscope.Start(pyroscope.Config{
-				ApplicationName:   t.ServiceName,
-				ServerAddress:     pCfg.URL,
-				BasicAuthUser:     pCfg.User,
-				BasicAuthPassword: pCfg.Token,
-				Logger:            &pyroscopeLogger{logger: logger},
-				UploadRate:        time.Second * 60,
-			})
-			if err != nil {
-				return nil, fmt.Errorf("failed to initialize profiling provider: %w", err)
-			}
-			tel.profiler = p
-			logger.Debug("initialized provider", "url", pCfg.URL, "type", "profiling")
-		} else {
-			logger.Debug("profiling enabled but no URL set, skipping", "type", "profiling")
+		tel.profilerEnabled = true
+		if err := t.InitPyroscope(ctx); err != nil {
+			return nil, fmt.Errorf("failed to initialize profiling provider: %w", err)
 		}
 	}
 
@@ -452,5 +487,5 @@ func (t *TelemetryConfig) InitializeTelemetry(ctx context.Context, serviceName s
 		logger.Debug("initialized provider", "OTLPAddr", t.OTLPAddr, "type", "logging")
 	}
 
-	return tel, nil
+	return t.Telemetry, nil
 }

@@ -4,17 +4,16 @@ import (
 	"context"
 	"flag"
 	"io"
+	"log/slog"
 	"net/http"
 	_ "net/http/pprof"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/justinas/alice"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/hlog"
-	"github.com/rs/zerolog/log"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/baggage"
@@ -24,6 +23,7 @@ import (
 	bConfig "github.com/bloominlabs/baseplate-go/config"
 	"github.com/bloominlabs/baseplate-go/config/observability"
 	"github.com/bloominlabs/baseplate-go/config/server"
+	"github.com/bloominlabs/baseplate-go/config/slogger"
 	bHttp "github.com/bloominlabs/baseplate-go/http"
 )
 
@@ -32,6 +32,7 @@ const SLUG = "loadchecker"
 type Config struct {
 	Telemetry observability.TelemetryConfig `toml:"telemetry"`
 	Server    server.ServerConfig           `toml:"server"`
+	Logger    slogger.SlogConfig            `toml:"logger"`
 }
 
 func (c *Config) Validate() error {
@@ -41,26 +42,45 @@ func (c *Config) Validate() error {
 func (c *Config) RegisterFlags(f *flag.FlagSet) {
 	c.Telemetry.RegisterFlags(f)
 	c.Server.RegisterFlags(f, "server")
+	c.Logger.RegisterFlags(f)
 }
 
 func main() {
-	var (
-		cfg Config
-	)
+	var cfg Config
 
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	log.Logger = log.With().Caller().Logger()
+	ctx := context.Background()
 
-	_, err := bConfig.ParseConfiguration(&cfg, log.Logger)
+	// Phase 1: Bootstrap logger (stderr only).
+	err := bConfig.ParseConfiguration(ctx, &cfg, nil)
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to parse configuration")
+		slog.Error("failed to parse configuration", "error", err)
+		os.Exit(1)
 	}
 
-	log.Info().Msg("starting")
-	if err := cfg.Telemetry.InitializeTelemetry(context.Background(), SLUG, log.Logger); err != nil {
-		log.Fatal().Err(err).Msg("failed to initialize telemetry")
+	logger := cfg.Logger.GetLogger(slogger.WithJSONHandler())
+	ctx = slogger.NewContext(ctx, logger)
+
+	// Phase 2: Init telemetry.
+	logger.Info("starting")
+	tel, err := cfg.Telemetry.InitializeTelemetry(ctx, SLUG,
+		observability.WithMetrics(),
+		observability.WithTracing(),
+		observability.WithLogging(),
+	)
+	if err != nil {
+		logger.Error("failed to initialize telemetry", "error", err)
+		os.Exit(1)
 	}
-	defer cfg.Telemetry.Shutdown(context.Background(), log.Logger)
+	defer tel.Shutdown(ctx)
+
+	// Phase 3: Upgrade logger with OTLP handler.
+	if h := tel.SlogHandler(SLUG); h != nil {
+		logger = cfg.Logger.GetLogger(
+			slogger.WithJSONHandler(),
+			slogger.WithExtraHandler(h),
+		)
+		ctx = slogger.NewContext(ctx, logger)
+	}
 
 	mp := otel.GetMeterProvider()
 	meter := mp.Meter(SLUG)
@@ -68,7 +88,6 @@ func main() {
 	underLoad := new(int64)
 	labels := new([]attribute.KeyValue)
 
-	// TODO
 	gaugeObserver, err := meter.Int64ObservableGauge(
 		"under_load",
 		metric.WithDescription(
@@ -77,7 +96,8 @@ func main() {
 	)
 
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to initialize instrument")
+		logger.Error("failed to initialize instrument", "error", err)
+		os.Exit(1)
 	}
 	_, _ = meter.RegisterCallback(func(ctx context.Context, o metric.Observer) error {
 		(*observerLock).RLock()
@@ -90,23 +110,22 @@ func main() {
 	})
 
 	helloHandler := func(w http.ResponseWriter, req *http.Request) {
-		logger := hlog.FromRequest(req)
-		ctx := req.Context()
-		_ = trace.SpanFromContext(ctx)
-		_ = baggage.FromContext(ctx)
+		reqLogger := slogger.FromContext(req.Context())
+		_ = trace.SpanFromContext(req.Context())
+		_ = baggage.FromContext(req.Context())
 
 		_, _ = io.WriteString(w, "Hello, world!\n")
 
 		if strings.Contains(req.URL.Path, "switch") {
 			val, ok := req.URL.Query()["val"]
 			if !ok || len(val[0]) < 1 {
-				logger.Error().Str("val", val[0]).Msg("missing parameter")
+				reqLogger.Error("missing parameter", "val", val[0])
 				return
 			}
 
 			load, err := strconv.Atoi(val[0])
 			if err != nil {
-				log.Error().Err(err).Str("val", val[0]).Msg("failed to convert val to int")
+				reqLogger.Error("failed to convert val to int", "error", err, "val", val[0])
 				return
 			}
 
@@ -118,25 +137,27 @@ func main() {
 
 	chain := alice.New(
 		bHttp.OTLPHandler(SLUG),
-		bHttp.HlogHandler,
+		bHttp.SlogHandler(logger),
 		bHttp.RatelimiterMiddleware(),
 	)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", http.HandlerFunc(helloHandler))
 	cfg.Server.UseCommonRoutes(mux, false)
-	server, err := cfg.Server.NewServer(chain.Then(mux), log.Logger)
+	srv, err := cfg.Server.NewServer(chain.Then(mux), logger)
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to create server")
+		logger.Error("failed to create server", "error", err)
+		os.Exit(1)
 	}
-	log.Logger.Info().Str("Addr", server.Addr).Msg("listening")
+	logger.Info("listening", "Addr", srv.Addr)
 
-	err = server.Listen()
+	err = srv.Listen()
 	defer func() {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
-		server.Shutdown(ctx)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+		srv.Shutdown(shutdownCtx)
 		cancel()
 	}()
 	if err != nil {
-		log.Fatal().Err(err).Msg("error while listening to http server")
+		logger.Error("error while listening to http server", "error", err)
+		os.Exit(1)
 	}
 }

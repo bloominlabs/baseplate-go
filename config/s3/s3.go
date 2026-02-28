@@ -182,6 +182,14 @@ func (c *S3Config) Merge(other *S3Config) error {
 
 func (c *S3Config) Validate() error {
 	var validationErrors error
+	// c.prefix is not set inside the file watcher in ParseConfiguration which
+	// will case backupsd to panic whenever the config changes on disk
+	//
+	// setting this as a default for now, but it would be nice to figure out a better solution for this.
+	// Maybe adding a WithBucket() to the init?
+	if c.prefix == "" {
+		c.prefix = "s3"
+	}
 	prefix, upperPrefix := CreatePrefix(c.prefix)
 	if c.AccessKeyID == "" {
 		validationErrors = errors.Join(
