@@ -9,15 +9,15 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-func LoadKeyPair(ca_path, cert_path, key_path string) (*credentials.TransportCredentials, error) {
-	certificate, err := tls.LoadX509KeyPair(cert_path, key_path)
+func LoadKeyPair(caPath, certPath, keyPath string) (*credentials.TransportCredentials, error) {
+	certificate, err := tls.LoadX509KeyPair(certPath, keyPath)
 	if err != nil {
 		return nil, err
 	}
 
-	ca, err := os.ReadFile(ca_path)
+	ca, err := os.ReadFile(caPath)
 	if err != nil {
-		return nil, fmt.Errorf("can't read ca file from %s", ca_path)
+		return nil, fmt.Errorf("can't read ca file from %s", caPath)
 	}
 
 	capool := x509.NewCertPool()
