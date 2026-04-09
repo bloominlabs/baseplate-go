@@ -28,7 +28,19 @@ type OIDCConfig struct {
 	sync.RWMutex
 }
 
+// Configured returns true when any OIDC field has been set. When false,
+// Validate will succeed and the authentication middleware should be skipped.
+func (c *OIDCConfig) Configured() bool {
+	return c.ClientID != "" || c.ClientSecret != "" || c.Issuer != ""
+}
+
+// Validate checks that all required OIDC fields are set. When no fields are
+// configured (Configured() == false), validation succeeds — this allows
+// services to run without authentication during local development.
 func (c *OIDCConfig) Validate() error {
+	if !c.Configured() {
+		return nil
+	}
 	var validationErrors error
 	if c.ClientID == "" {
 		validationErrors = errors.Join(validationErrors, fmt.Errorf("failed to validate 'client_id'. did you specify 'oidc.client-id' or 'OIDC_CLIENT_ID'?"))
